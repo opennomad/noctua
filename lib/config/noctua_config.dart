@@ -1,48 +1,66 @@
 /// Keyboard navigation bindings.
 class KeyBindings {
   final bool   enabled;
-  final String nav_left;
-  final String nav_right;
-  final String nav_up;
-  final String nav_down;
+  final String nav_next;
+  final String nav_prev;
 
   const KeyBindings({
-    this.enabled   = true,
-    this.nav_left  = 'Arrow Left',
-    this.nav_right = 'Arrow Right',
-    this.nav_up    = 'Arrow Up',
-    this.nav_down  = 'Arrow Down',
+    this.enabled  = true,
+    this.nav_next = 'Arrow Right',
+    this.nav_prev = 'Arrow Left',
   });
 
   factory KeyBindings.fromJson(Map<String, dynamic> j) => KeyBindings(
-        enabled:   j['enabled']   as bool?   ?? true,
-        nav_left:  j['nav_left']  as String? ?? 'Arrow Left',
-        nav_right: j['nav_right'] as String? ?? 'Arrow Right',
-        nav_up:    j['nav_up']    as String? ?? 'Arrow Up',
-        nav_down:  j['nav_down']  as String? ?? 'Arrow Down',
+        enabled:  j['enabled']  as bool?   ?? true,
+        // fall back to old nav_right / nav_left keys when migrating config
+        nav_next: j['nav_next'] as String? ?? j['nav_right'] as String? ?? 'Arrow Right',
+        nav_prev: j['nav_prev'] as String? ?? j['nav_left']  as String? ?? 'Arrow Left',
       );
 
   Map<String, dynamic> toJson() => {
-        'enabled':   enabled,
-        'nav_left':  nav_left,
-        'nav_right': nav_right,
-        'nav_up':    nav_up,
-        'nav_down':  nav_down,
+        'enabled':  enabled,
+        'nav_next': nav_next,
+        'nav_prev': nav_prev,
       };
 
-  KeyBindings copyWith({
-    bool?   enabled,
-    String? nav_left,
-    String? nav_right,
-    String? nav_up,
-    String? nav_down,
-  }) =>
+  KeyBindings copyWith({bool? enabled, String? nav_next, String? nav_prev}) =>
       KeyBindings(
-        enabled:   enabled   ?? this.enabled,
-        nav_left:  nav_left  ?? this.nav_left,
-        nav_right: nav_right ?? this.nav_right,
-        nav_up:    nav_up    ?? this.nav_up,
-        nav_down:  nav_down  ?? this.nav_down,
+        enabled:  enabled  ?? this.enabled,
+        nav_next: nav_next ?? this.nav_next,
+        nav_prev: nav_prev ?? this.nav_prev,
+      );
+}
+
+/// One entry in the navigation stack.
+class ScreenSlot {
+  /// One of: 'clock', 'world_clock', 'alarm', 'night_clock', 'timer', 'stopwatch'.
+  final String id;
+
+  /// Colour-scheme name: 'blue' | 'purple' | 'green' | 'hue:NNN'.
+  final String scheme;
+
+  /// When false the screen is hidden from the navigation stack.
+  final bool enabled;
+
+  const ScreenSlot({
+    required this.id,
+    required this.scheme,
+    this.enabled = true,
+  });
+
+  factory ScreenSlot.fromJson(Map<String, dynamic> j) => ScreenSlot(
+        id:      j['id']      as String? ?? 'clock',
+        scheme:  j['scheme']  as String? ?? 'blue',
+        enabled: j['enabled'] as bool?   ?? true,
+      );
+
+  Map<String, dynamic> toJson() =>
+      {'id': id, 'scheme': scheme, 'enabled': enabled};
+
+  ScreenSlot copyWith({String? scheme, bool? enabled}) => ScreenSlot(
+        id:      id,
+        scheme:  scheme  ?? this.scheme,
+        enabled: enabled ?? this.enabled,
       );
 }
 
@@ -115,11 +133,11 @@ class AlarmConfig {
     List<int>? repeat_days,
   }) =>
       AlarmConfig(
-        id: id ?? this.id,
-        hour: hour ?? this.hour,
-        minute: minute ?? this.minute,
-        label: label ?? this.label,
-        enabled: enabled ?? this.enabled,
+        id:          id          ?? this.id,
+        hour:        hour        ?? this.hour,
+        minute:      minute      ?? this.minute,
+        label:       label       ?? this.label,
+        enabled:     enabled     ?? this.enabled,
         repeat_days: repeat_days ?? this.repeat_days,
       );
 
@@ -145,7 +163,7 @@ class ZoneConfig {
   const ZoneConfig({required this.city, required this.tz_id});
 
   factory ZoneConfig.fromJson(Map<String, dynamic> json) => ZoneConfig(
-        city: json['city'] as String? ?? 'Unknown',
+        city:  json['city']  as String? ?? 'Unknown',
         tz_id: json['tz_id'] as String? ?? 'UTC',
       );
 
@@ -153,7 +171,6 @@ class ZoneConfig {
 }
 
 /// Parameters shared by all animation types.
-/// Unknown keys are ignored so adding new fields stays backwards-compatible.
 class AnimationParams {
   /// Playback speed multiplier. 0.5 = half speed, 2.0 = double speed.
   final double speed;
@@ -171,57 +188,40 @@ class AnimationParams {
   });
 
   factory AnimationParams.fromJson(Map<String, dynamic> json) => AnimationParams(
-        speed: (json['speed'] as num?)?.toDouble() ?? 1.0,
-        density: (json['density'] as num?)?.toDouble() ?? 1.0,
+        speed:     (json['speed']     as num?)?.toDouble() ?? 1.0,
+        density:   (json['density']   as num?)?.toDouble() ?? 1.0,
         amplitude: (json['amplitude'] as num?)?.toDouble() ?? 1.0,
       );
 
   Map<String, dynamic> toJson() => {
-        'speed': speed,
-        'density': density,
+        'speed':     speed,
+        'density':   density,
         'amplitude': amplitude,
       };
 
   AnimationParams copyWith({double? speed, double? density, double? amplitude}) =>
       AnimationParams(
-        speed: speed ?? this.speed,
-        density: density ?? this.density,
+        speed:     speed     ?? this.speed,
+        density:   density   ?? this.density,
         amplitude: amplitude ?? this.amplitude,
       );
 }
 
-/// Per-column configuration (one entry per horizontal page).
-class ColumnConfig {
-  final String scheme; // 'blue' | 'purple' | 'green'
-
-  const ColumnConfig({required this.scheme});
-
-  factory ColumnConfig.fromJson(Map<String, dynamic> json) =>
-      ColumnConfig(scheme: json['scheme'] as String? ?? 'blue');
-
-  Map<String, dynamic> toJson() => {'scheme': scheme};
-
-  ColumnConfig copyWith({String? scheme}) =>
-      ColumnConfig(scheme: scheme ?? this.scheme);
-}
-
 /// Root config object written to noctua_config.json.
 class NoctuaConfig {
-  /// Ordered: [clock column, alarm column, timer column].
-  final List<ColumnConfig> columns;
+  /// Ordered list of screens in the navigation stack.
+  final List<ScreenSlot> screens;
 
   /// Animation style applied to all backgrounds.
-  /// Supported: 'lava_lamp', 'raindrops', 'wave', 'pulse'.
   final String animation;
 
   /// Parameters for the active animation.
   final AnimationParams animation_params;
 
-  /// Font family key.  'default' means the system font; other values are
-  /// resolved by [applyFont] in lib/theme/fonts.dart.
+  /// Font family key.
   final String font;
 
-  /// World clock zone list (shown on the Clock column secondary screen).
+  /// World clock zone list.
   final List<ZoneConfig> world_clocks;
 
   /// Saved alarms.
@@ -237,7 +237,7 @@ class NoctuaConfig {
   final KeyBindings key_bindings;
 
   const NoctuaConfig({
-    required this.columns,
+    required this.screens,
     required this.animation,
     this.animation_params = const AnimationParams(),
     this.font = 'default',
@@ -246,17 +246,20 @@ class NoctuaConfig {
       ZoneConfig(city: 'Tokyo',    tz_id: 'Asia/Tokyo'),
       ZoneConfig(city: 'New York', tz_id: 'America/New_York'),
     ],
-    this.alarms = const [],
-    this.saved_timers = const [],
+    this.alarms        = const [],
+    this.saved_timers  = const [],
     this.timer_pill_edge = 'left',
-    this.key_bindings = const KeyBindings(),
+    this.key_bindings  = const KeyBindings(),
   });
 
   static NoctuaConfig get defaults => const NoctuaConfig(
-        columns: [
-          ColumnConfig(scheme: 'blue'),
-          ColumnConfig(scheme: 'purple'),
-          ColumnConfig(scheme: 'green'),
+        screens: [
+          ScreenSlot(id: 'clock',       scheme: 'blue'),
+          ScreenSlot(id: 'world_clock', scheme: 'blue'),
+          ScreenSlot(id: 'alarm',       scheme: 'purple'),
+          ScreenSlot(id: 'night_clock', scheme: 'purple'),
+          ScreenSlot(id: 'timer',       scheme: 'green'),
+          ScreenSlot(id: 'stopwatch',   scheme: 'green'),
         ],
         animation: 'lava_lamp',
         animation_params: AnimationParams(),
@@ -264,15 +267,33 @@ class NoctuaConfig {
       );
 
   factory NoctuaConfig.fromJson(Map<String, dynamic> json) {
-    final raw_columns = json['columns'];
-    final parsed_columns = raw_columns is List
-        ? raw_columns
-            .map((c) => ColumnConfig.fromJson(c as Map<String, dynamic>))
-            .toList()
-        : NoctuaConfig.defaults.columns;
+    List<ScreenSlot> parsed_screens;
+
+    if (json['screens'] is List) {
+      // Current format
+      parsed_screens = (json['screens'] as List)
+          .map((s) => ScreenSlot.fromJson(s as Map<String, dynamic>))
+          .toList();
+    } else if (json['columns'] is List) {
+      // Migrate from old 3-column format
+      final cols = (json['columns'] as List)
+          .map((c) => (c as Map<String, dynamic>)['scheme'] as String? ?? 'blue')
+          .toList();
+      String schemeOf(int i) => i < cols.length ? cols[i] : 'blue';
+      parsed_screens = [
+        ScreenSlot(id: 'clock',       scheme: schemeOf(0)),
+        ScreenSlot(id: 'world_clock', scheme: schemeOf(0)),
+        ScreenSlot(id: 'alarm',       scheme: schemeOf(1)),
+        ScreenSlot(id: 'night_clock', scheme: schemeOf(1)),
+        ScreenSlot(id: 'timer',       scheme: schemeOf(2)),
+        ScreenSlot(id: 'stopwatch',   scheme: schemeOf(2)),
+      ];
+    } else {
+      parsed_screens = NoctuaConfig.defaults.screens;
+    }
 
     return NoctuaConfig(
-      columns: parsed_columns,
+      screens: parsed_screens,
       animation: json['animation'] as String? ?? 'lava_lamp',
       animation_params: json['animation_params'] is Map
           ? AnimationParams.fromJson(
@@ -302,37 +323,37 @@ class NoctuaConfig {
   }
 
   Map<String, dynamic> toJson() => {
-        'columns': columns.map((c) => c.toJson()).toList(),
-        'animation': animation,
+        'screens':          screens.map((s) => s.toJson()).toList(),
+        'animation':        animation,
         'animation_params': animation_params.toJson(),
-        'font': font,
-        'world_clocks': world_clocks.map((z) => z.toJson()).toList(),
-        'alarms': alarms.map((a) => a.toJson()).toList(),
-        'saved_timers': saved_timers.map((t) => t.toJson()).toList(),
-        'timer_pill_edge': timer_pill_edge,
-        'key_bindings':    key_bindings.toJson(),
+        'font':             font,
+        'world_clocks':     world_clocks.map((z) => z.toJson()).toList(),
+        'alarms':           alarms.map((a) => a.toJson()).toList(),
+        'saved_timers':     saved_timers.map((t) => t.toJson()).toList(),
+        'timer_pill_edge':  timer_pill_edge,
+        'key_bindings':     key_bindings.toJson(),
       };
 
   NoctuaConfig copyWith({
-    List<ColumnConfig>? columns,
-    String? animation,
-    AnimationParams? animation_params,
-    String? font,
-    List<ZoneConfig>? world_clocks,
+    List<ScreenSlot>?  screens,
+    String?            animation,
+    AnimationParams?   animation_params,
+    String?            font,
+    List<ZoneConfig>?  world_clocks,
     List<AlarmConfig>? alarms,
-    List<SavedTimer>? saved_timers,
-    String?      timer_pill_edge,
-    KeyBindings? key_bindings,
+    List<SavedTimer>?  saved_timers,
+    String?            timer_pill_edge,
+    KeyBindings?       key_bindings,
   }) =>
       NoctuaConfig(
-        columns:         columns         ?? this.columns,
-        animation:       animation       ?? this.animation,
-        animation_params:animation_params?? this.animation_params,
-        font:            font            ?? this.font,
-        world_clocks:    world_clocks    ?? this.world_clocks,
-        alarms:          alarms          ?? this.alarms,
-        saved_timers:    saved_timers    ?? this.saved_timers,
-        timer_pill_edge: timer_pill_edge ?? this.timer_pill_edge,
-        key_bindings:    key_bindings    ?? this.key_bindings,
+        screens:          screens          ?? this.screens,
+        animation:        animation        ?? this.animation,
+        animation_params: animation_params ?? this.animation_params,
+        font:             font             ?? this.font,
+        world_clocks:     world_clocks     ?? this.world_clocks,
+        alarms:           alarms           ?? this.alarms,
+        saved_timers:     saved_timers     ?? this.saved_timers,
+        timer_pill_edge:  timer_pill_edge  ?? this.timer_pill_edge,
+        key_bindings:     key_bindings     ?? this.key_bindings,
       );
 }

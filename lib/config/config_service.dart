@@ -113,6 +113,32 @@ class ConfigService extends ChangeNotifier {
     await save();
   }
 
+  // ── Screen helpers ────────────────────────────────────────────────────────
+
+  Future<void> setScreens(List<ScreenSlot> screens) async {
+    _config = _config.copyWith(screens: screens);
+    notifyListeners();
+    await save();
+  }
+
+  Future<void> setScreenEnabled(String id, bool enabled) async {
+    final updated = _config.screens
+        .map((s) => s.id == id ? s.copyWith(enabled: enabled) : s)
+        .toList();
+    _config = _config.copyWith(screens: updated);
+    notifyListeners();
+    await save();
+  }
+
+  Future<void> setScreenScheme(String id, String scheme) async {
+    final updated = _config.screens
+        .map((s) => s.id == id ? s.copyWith(scheme: scheme) : s)
+        .toList();
+    _config = _config.copyWith(screens: updated);
+    notifyListeners();
+    await save();
+  }
+
   Future<void> setKeyBindings(KeyBindings kb) async {
     _config = _config.copyWith(key_bindings: kb);
     notifyListeners();
@@ -140,14 +166,6 @@ class ConfigService extends ChangeNotifier {
 
   Future<void> setFont(String font) async {
     _config = _config.copyWith(font: font);
-    notifyListeners();
-    await save();
-  }
-
-  Future<void> setColumnScheme(int column_index, String scheme) async {
-    final cols = List<ColumnConfig>.from(_config.columns);
-    cols[column_index] = cols[column_index].copyWith(scheme: scheme);
-    _config = _config.copyWith(columns: cols);
     notifyListeners();
     await save();
   }

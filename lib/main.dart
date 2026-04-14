@@ -4,16 +4,15 @@ import 'package:flutter/services.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'services/alarm_service.dart';
 import 'config/config_service.dart';
-import 'screens/column_page.dart';
 import 'screens/clock/clock_screen.dart';
 import 'screens/clock/world_clock_screen.dart';
 import 'screens/alarm/alarm_screen.dart';
 import 'screens/alarm/night_clock_screen.dart';
 import 'screens/timer/timer_screen.dart';
 import 'screens/timer/stopwatch_screen.dart';
-import 'theme/color_schemes.dart';
 import 'theme/fonts.dart';
 import 'widgets/settings_overlay.dart';
+import 'widgets/stack_nav.dart';
 
 // Global navigator key — lets the keyboard handler detect open modals/sheets.
 final _nav_key = GlobalKey<NavigatorState>();
@@ -76,20 +75,17 @@ class NoctuaHome extends StatefulWidget {
 }
 
 class _NoctuaHomeState extends State<NoctuaHome> {
-  late final PageController _page_ctrl;
-  final _col_ctrls = List.generate(3, (_) => ColumnPageController());
+  final _stack_ctrl = StackNavController();
 
   @override
   void initState() {
     super.initState();
-    _page_ctrl = PageController();
     HardwareKeyboard.instance.addHandler(_onKey);
   }
 
   @override
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_onKey);
-    _page_ctrl.dispose();
     super.dispose();
   }
 
@@ -108,41 +104,24 @@ class _NoctuaHomeState extends State<NoctuaHome> {
     }
 
     final label = event.logicalKey.keyLabel;
-    final page  = _page_ctrl.page?.round() ?? 0;
-
-    if (label == kb.nav_left) {
-      _page_ctrl.animateToPage(
-        (page - 1).clamp(0, 2),
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-      return true;
-    }
-    if (label == kb.nav_right) {
-      _page_ctrl.animateToPage(
-        (page + 1).clamp(0, 2),
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-      return true;
-    }
-    if (label == kb.nav_up) {
-      _col_ctrls[page].goToPrimary();
-      return true;
-    }
-    if (label == kb.nav_down) {
-      _col_ctrls[page].goToSecondary();
-      return true;
-    }
-
+    if (label == kb.nav_next) { _stack_ctrl.goNext(); return true; }
+    if (label == kb.nav_prev) { _stack_ctrl.goPrev(); return true; }
     return false;
   }
 
+  Widget _buildScreen(String id) => switch (id) {
+    'clock'       => const ClockScreen(),
+    'world_clock' => WorldClockScreen(config_service: widget.config_service),
+    'alarm'       => AlarmScreen(config_service: widget.config_service),
+    'night_clock' => const NightClockScreen(),
+    'timer'       => TimerScreen(config_service: widget.config_service),
+    'stopwatch'   => const StopwatchScreen(),
+    _             => const SizedBox.shrink(),
+  };
+
   @override
   Widget build(BuildContext context) {
-    final cfg     = widget.config;
-    final schemes = cfg.columns.map((c) => schemeByName(c.scheme)).toList();
-
+    final cfg        = widget.config;
     final base_theme = Theme.of(context);
     return Theme(
       data: base_theme.copyWith(
@@ -151,39 +130,12 @@ class _NoctuaHomeState extends State<NoctuaHome> {
       child: Scaffold(
         body: SettingsOverlay(
           config_service: widget.config_service,
-          child: PageView(
-            controller: _page_ctrl,
-            scrollDirection: Axis.horizontal,
-            physics: const PageScrollPhysics(),
-            children: [
-              ColumnPage(
-                controller: _col_ctrls[0],
-                scheme: schemes[0],
-                animation: cfg.animation,
-                animation_params: cfg.animation_params,
-                primaryScreen: const ClockScreen(),
-                secondaryScreen:
-                    WorldClockScreen(config_service: widget.config_service),
-              ),
-              ColumnPage(
-                controller: _col_ctrls[1],
-                scheme: schemes[1],
-                animation: cfg.animation,
-                animation_params: cfg.animation_params,
-                primaryScreen:
-                    AlarmScreen(config_service: widget.config_service),
-                secondaryScreen: const NightClockScreen(),
-              ),
-              ColumnPage(
-                controller: _col_ctrls[2],
-                scheme: schemes[2],
-                animation: cfg.animation,
-                animation_params: cfg.animation_params,
-                primaryScreen:
-                    TimerScreen(config_service: widget.config_service),
-                secondaryScreen: const StopwatchScreen(),
-              ),
-            ],
+          child: StackNav(
+            controller:       _stack_ctrl,
+            slots:            cfg.screens,
+            animation:        cfg.animation,
+            animation_params: cfg.animation_params,
+            screenBuilder:    _buildScreen,
           ),
         ),
       ),

@@ -400,7 +400,7 @@ class _TimerScreenState extends State<TimerScreen>
 
     if (is_side) {
       return SizedBox(
-        width: 80,
+        width: 96,
         child: ListView(
           padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
           children: [
@@ -457,11 +457,12 @@ class _TimerScreenState extends State<TimerScreen>
           children: [
             Text(
               t.name,
-              maxLines: 1,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 14,
+                height: 1.2,
                 color: Colors.white
                     .withAlpha(is_active ? 230 : (is_running ? 200 : 160)),
               ),

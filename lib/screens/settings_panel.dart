@@ -24,14 +24,23 @@ class _SettingsPanel extends StatefulWidget {
 }
 
 class _SettingsPanelState extends State<_SettingsPanel> {
-  late String        _animation;
-  late double        _speed;
-  late double        _density;
-  late double        _amplitude;
-  late List<String>  _schemes;
-  late String        _font;
-  late String        _pill_edge;
-  late KeyBindings   _kb;
+  late String            _animation;
+  late double            _speed;
+  late double            _density;
+  late double            _amplitude;
+  late List<ScreenSlot>  _screens;
+  late String            _font;
+  late String            _pill_edge;
+  late KeyBindings       _kb;
+
+  static const Map<String, String> _screen_names = {
+    'clock':       'Clock',
+    'world_clock': 'World Clock',
+    'alarm':       'Alarm',
+    'night_clock': 'Night Clock',
+    'timer':       'Timer',
+    'stopwatch':   'Stopwatch',
+  };
 
   @override
   void initState() {
@@ -41,7 +50,7 @@ class _SettingsPanelState extends State<_SettingsPanel> {
     _speed     = cfg.animation_params.speed;
     _density   = cfg.animation_params.density;
     _amplitude = cfg.animation_params.amplitude;
-    _schemes   = cfg.columns.map((c) => c.scheme).toList();
+    _screens   = List<ScreenSlot>.from(cfg.screens);
     _font      = cfg.font;
     _pill_edge = cfg.timer_pill_edge;
     _kb        = cfg.key_bindings;
@@ -65,9 +74,29 @@ class _SettingsPanelState extends State<_SettingsPanel> {
     widget.svc.setFont(val);
   }
 
-  void _setScheme(int col, String scheme) {
-    setState(() => _schemes[col] = scheme);
-    widget.svc.setColumnScheme(col, scheme);
+  void _setScreenEnabled(String id, bool enabled) {
+    setState(() {
+      final i = _screens.indexWhere((s) => s.id == id);
+      if (i >= 0) _screens[i] = _screens[i].copyWith(enabled: enabled);
+    });
+    widget.svc.setScreenEnabled(id, enabled);
+  }
+
+  void _setScreenScheme(String id, String scheme) {
+    setState(() {
+      final i = _screens.indexWhere((s) => s.id == id);
+      if (i >= 0) _screens[i] = _screens[i].copyWith(scheme: scheme);
+    });
+    widget.svc.setScreenScheme(id, scheme);
+  }
+
+  void _reorderScreens(int old_index, int new_index) {
+    setState(() {
+      if (new_index > old_index) new_index--;
+      final item = _screens.removeAt(old_index);
+      _screens.insert(new_index, item);
+    });
+    widget.svc.setScreens(List<ScreenSlot>.from(_screens));
   }
 
   void _setPillEdge(String val) {
@@ -141,13 +170,9 @@ class _SettingsPanelState extends State<_SettingsPanel> {
             const SizedBox(height: 10),
             _pillEdgeChips(),
             const SizedBox(height: 20),
-            _sectionLabel('Colors'),
-            const SizedBox(height: 10),
-            _schemeRow(0, 'Clock'),
-            const SizedBox(height: 12),
-            _schemeRow(1, 'Alarm'),
-            const SizedBox(height: 12),
-            _schemeRow(2, 'Timer'),
+            _sectionLabel('Screens'),
+            const SizedBox(height: 6),
+            _screenList(),
             const SizedBox(height: 4),
           ],
         ),
@@ -204,10 +229,8 @@ class _SettingsPanelState extends State<_SettingsPanel> {
           ),
           if (_kb.enabled) ...[
             const SizedBox(height: 6),
-            _keyRow('←  Left',  _kb.nav_left,  (k) => _setKeyBindings(_kb.copyWith(nav_left: k))),
-            _keyRow('→  Right', _kb.nav_right, (k) => _setKeyBindings(_kb.copyWith(nav_right: k))),
-            _keyRow('↑  Up',    _kb.nav_up,    (k) => _setKeyBindings(_kb.copyWith(nav_up: k))),
-            _keyRow('↓  Down',  _kb.nav_down,  (k) => _setKeyBindings(_kb.copyWith(nav_down: k))),
+            _keyRow('→  Next', _kb.nav_next, (k) => _setKeyBindings(_kb.copyWith(nav_next: k))),
+            _keyRow('←  Prev', _kb.nav_prev, (k) => _setKeyBindings(_kb.copyWith(nav_prev: k))),
           ],
         ],
       );
@@ -404,22 +427,68 @@ class _SettingsPanelState extends State<_SettingsPanel> {
         ],
       );
 
-  // Per-column row: preset circles + hue gradient slider
-  Widget _schemeRow(int col, String label) => Row(
+  // ── screen list ───────────────────────────────────────────────────────────
+
+  Widget _screenList() => ReorderableListView(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        buildDefaultDragHandles: false,
+        onReorder: _reorderScreens,
         children: [
+          for (int i = 0; i < _screens.length; i++)
+            _screenRow(_screens[i], i),
+        ],
+      );
+
+  Widget _screenRow(ScreenSlot slot, int i) {
+    final name = _screen_names[slot.id] ?? slot.id;
+    return Padding(
+      key: ValueKey(slot.id),
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        children: [
+          ReorderableDragStartListener(
+            index: i,
+            child: const Padding(
+              padding: EdgeInsets.only(right: 10),
+              child: Icon(Icons.drag_handle, size: 18, color: Colors.white24),
+            ),
+          ),
           SizedBox(
-            width: 60,
-            child: Text(label,
-                style: const TextStyle(color: Colors.white38, fontSize: 13)),
+            width: 86,
+            child: Text(
+              name,
+              style: TextStyle(
+                fontSize: 13,
+                color: slot.enabled ? Colors.white60 : Colors.white24,
+              ),
+            ),
           ),
           Expanded(
             child: _HueSlider(
-              hue: _hueOf(_schemes[col]),
-              onChanged: (h) => _setScheme(col, 'hue:${h.toStringAsFixed(1)}'),
+              hue: _hueOf(slot.scheme),
+              enabled: slot.enabled,
+              onChanged: slot.enabled
+                  ? (h) => _setScreenScheme(slot.id, 'hue:${h.toStringAsFixed(1)}')
+                  : (_) {},
+            ),
+          ),
+          Transform.scale(
+            scale: 0.72,
+            alignment: Alignment.centerRight,
+            child: Switch(
+              value: slot.enabled,
+              onChanged: (v) => _setScreenEnabled(slot.id, v),
+              activeThumbColor: Colors.white70,
+              activeTrackColor: Colors.white24,
+              inactiveThumbColor: Colors.white24,
+              inactiveTrackColor: Colors.white12,
             ),
           ),
         ],
-      );
+      ),
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -428,9 +497,14 @@ class _SettingsPanelState extends State<_SettingsPanel> {
 
 class _HueSlider extends StatelessWidget {
   final double hue;
+  final bool enabled;
   final ValueChanged<double> onChanged;
 
-  const _HueSlider({required this.hue, required this.onChanged});
+  const _HueSlider({
+    required this.hue,
+    required this.onChanged,
+    this.enabled = true,
+  });
 
   void _update(Offset local, BoxConstraints bc) {
     final pct = (local.dx / bc.maxWidth).clamp(0.0, 1.0);
@@ -439,13 +513,16 @@ class _HueSlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (ctx, bc) => GestureDetector(
-        onTapDown:             (d) => _update(d.localPosition, bc),
-        onHorizontalDragUpdate:(d) => _update(d.localPosition, bc),
-        child: CustomPaint(
-          painter: _HuePainter(hue),
-          size: const Size(double.infinity, 28),
+    return Opacity(
+      opacity: enabled ? 1.0 : 0.3,
+      child: LayoutBuilder(
+        builder: (ctx, bc) => GestureDetector(
+          onTapDown:             enabled ? (d) => _update(d.localPosition, bc) : null,
+          onHorizontalDragUpdate:enabled ? (d) => _update(d.localPosition, bc) : null,
+          child: CustomPaint(
+            painter: _HuePainter(hue),
+            size: const Size(double.infinity, 28),
+          ),
         ),
       ),
     );
