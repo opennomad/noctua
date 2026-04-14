@@ -54,21 +54,31 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
     super.dispose();
   }
 
+  // Renders [time] centred inside a frame permanently sized to '00:00.00' so
+  // the layout never shifts as digits change, regardless of tnum font support.
+  Widget _stableTime(String time, TextStyle style) => Stack(
+        alignment: Alignment.center,
+        children: [
+          Opacity(opacity: 0, child: Text('00:00.00', style: style)),
+          Text(time, style: style),
+        ],
+      );
+
   @override
   Widget build(BuildContext context) {
+    const time_style = TextStyle(
+      fontSize: 64,
+      fontWeight: FontWeight.w100,
+      letterSpacing: 4,
+      color: Colors.white,
+      fontFeatures: [FontFeature.tabularFigures()],
+    );
+
     return SafeArea(
       child: Column(
         children: [
           const Spacer(),
-          Text(
-            _format(_stopwatch.elapsed),
-            style: const TextStyle(
-              fontSize: 64,
-              fontWeight: FontWeight.w100,
-              letterSpacing: 4,
-              color: Colors.white,
-            ),
-          ),
+          _stableTime(_format(_stopwatch.elapsed), time_style),
           const SizedBox(height: 40),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -115,6 +125,7 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
                             color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.w300,
+                            fontFeatures: [FontFeature.tabularFigures()],
                           ),
                         ),
                       ],

@@ -10,21 +10,24 @@ class AlarmScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: ListenableBuilder(
-        listenable: config_service,
-        builder: (ctx, child) {
-          final alarms = config_service.config.alarms;
-          return Column(
-            children: [
-              _header(ctx),
-              Expanded(
-                child: alarms.isEmpty
-                    ? _empty(ctx)
-                    : _list(ctx, alarms),
-              ),
-            ],
-          );
-        },
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: ListenableBuilder(
+            listenable: config_service,
+            builder: (ctx, child) {
+              final alarms = config_service.config.alarms;
+              return Column(
+                children: [
+                  _header(ctx),
+                  Expanded(
+                    child: alarms.isEmpty ? _empty(ctx) : _list(ctx, alarms),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
       ),
     );
   }
@@ -87,25 +90,24 @@ class AlarmScreen extends StatelessWidget {
 
   Widget _list(BuildContext ctx, List<AlarmConfig> alarms) =>
       ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        padding: const EdgeInsets.only(bottom: 16),
         itemCount: alarms.length,
-        itemBuilder: (_, i) => _AlarmCard(
+        itemBuilder: (_, i) => _AlarmRow(
           alarm: alarms[i],
           config_service: config_service,
-          on_tap: () => showAlarmEditSheet(ctx, config_service,
-              alarm: alarms[i]),
+          on_tap: () => showAlarmEditSheet(ctx, config_service, alarm: alarms[i]),
         ),
       );
 }
 
-// ── alarm card ────────────────────────────────────────────────────────────────
+// ── alarm row ─────────────────────────────────────────────────────────────────
 
-class _AlarmCard extends StatelessWidget {
+class _AlarmRow extends StatelessWidget {
   final AlarmConfig alarm;
   final ConfigService config_service;
   final VoidCallback on_tap;
 
-  const _AlarmCard({
+  const _AlarmRow({
     required this.alarm,
     required this.config_service,
     required this.on_tap,
@@ -120,17 +122,10 @@ class _AlarmCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: on_tap,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 6),
-        padding: const EdgeInsets.fromLTRB(20, 14, 12, 14),
-        decoration: BoxDecoration(
-          color: Colors.white.withAlpha(alarm.enabled ? 15 : 8),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: Colors.white.withAlpha(alarm.enabled ? 30 : 15),
-          ),
-        ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
               child: Column(
@@ -142,11 +137,10 @@ class _AlarmCard extends StatelessWidget {
                       fontSize: 36,
                       fontWeight: FontWeight.w100,
                       letterSpacing: 2,
-                      color: Colors.white
-                          .withAlpha(alarm.enabled ? 230 : 120),
+                      color: Colors.white.withAlpha(alarm.enabled ? 230 : 120),
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Row(
                     children: [
                       if (alarm.label.isNotEmpty) ...[
@@ -158,11 +152,9 @@ class _AlarmCard extends StatelessWidget {
                                 .withAlpha(alarm.enabled ? 153 : 77),
                           ),
                         ),
-                        Text(
-                          ' · ',
-                          style: TextStyle(
-                              color: Colors.white.withAlpha(51)),
-                        ),
+                        Text(' · ',
+                            style: TextStyle(
+                                color: Colors.white.withAlpha(51))),
                       ],
                       Text(
                         alarm.repeat_label,

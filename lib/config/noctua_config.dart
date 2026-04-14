@@ -1,3 +1,72 @@
+/// Keyboard navigation bindings.
+class KeyBindings {
+  final bool   enabled;
+  final String nav_left;
+  final String nav_right;
+  final String nav_up;
+  final String nav_down;
+
+  const KeyBindings({
+    this.enabled   = true,
+    this.nav_left  = 'Arrow Left',
+    this.nav_right = 'Arrow Right',
+    this.nav_up    = 'Arrow Up',
+    this.nav_down  = 'Arrow Down',
+  });
+
+  factory KeyBindings.fromJson(Map<String, dynamic> j) => KeyBindings(
+        enabled:   j['enabled']   as bool?   ?? true,
+        nav_left:  j['nav_left']  as String? ?? 'Arrow Left',
+        nav_right: j['nav_right'] as String? ?? 'Arrow Right',
+        nav_up:    j['nav_up']    as String? ?? 'Arrow Up',
+        nav_down:  j['nav_down']  as String? ?? 'Arrow Down',
+      );
+
+  Map<String, dynamic> toJson() => {
+        'enabled':   enabled,
+        'nav_left':  nav_left,
+        'nav_right': nav_right,
+        'nav_up':    nav_up,
+        'nav_down':  nav_down,
+      };
+
+  KeyBindings copyWith({
+    bool?   enabled,
+    String? nav_left,
+    String? nav_right,
+    String? nav_up,
+    String? nav_down,
+  }) =>
+      KeyBindings(
+        enabled:   enabled   ?? this.enabled,
+        nav_left:  nav_left  ?? this.nav_left,
+        nav_right: nav_right ?? this.nav_right,
+        nav_up:    nav_up    ?? this.nav_up,
+        nav_down:  nav_down  ?? this.nav_down,
+      );
+}
+
+/// A named saved timer preset.
+class SavedTimer {
+  final String id;
+  final String name;    // emoji / unicode supported
+  final int seconds;    // total duration
+
+  const SavedTimer({required this.id, required this.name, required this.seconds});
+
+  factory SavedTimer.fromJson(Map<String, dynamic> json) => SavedTimer(
+        id:      json['id']      as String? ?? '0',
+        name:    json['name']    as String? ?? '',
+        seconds: (json['seconds'] as num?)?.toInt() ?? 0,
+      );
+
+  Map<String, dynamic> toJson() =>
+      {'id': id, 'name': name, 'seconds': seconds};
+
+  SavedTimer copyWith({String? name, int? seconds}) =>
+      SavedTimer(id: id, name: name ?? this.name, seconds: seconds ?? this.seconds);
+}
+
 /// A single alarm entry.
 class AlarmConfig {
   final String id;           // auto-incrementing integer string
@@ -158,6 +227,15 @@ class NoctuaConfig {
   /// Saved alarms.
   final List<AlarmConfig> alarms;
 
+  /// Saved timer presets.
+  final List<SavedTimer> saved_timers;
+
+  /// Which screen edge the timer pills attach to: 'left', 'right', or 'bottom'.
+  final String timer_pill_edge;
+
+  /// Keyboard navigation bindings.
+  final KeyBindings key_bindings;
+
   const NoctuaConfig({
     required this.columns,
     required this.animation,
@@ -169,6 +247,9 @@ class NoctuaConfig {
       ZoneConfig(city: 'New York', tz_id: 'America/New_York'),
     ],
     this.alarms = const [],
+    this.saved_timers = const [],
+    this.timer_pill_edge = 'left',
+    this.key_bindings = const KeyBindings(),
   });
 
   static NoctuaConfig get defaults => const NoctuaConfig(
@@ -208,6 +289,15 @@ class NoctuaConfig {
               .map((a) => AlarmConfig.fromJson(a as Map<String, dynamic>))
               .toList()
           : const [],
+      saved_timers: json['saved_timers'] is List
+          ? (json['saved_timers'] as List)
+              .map((t) => SavedTimer.fromJson(t as Map<String, dynamic>))
+              .toList()
+          : const [],
+      timer_pill_edge: json['timer_pill_edge'] as String? ?? 'left',
+      key_bindings: json['key_bindings'] is Map
+          ? KeyBindings.fromJson(json['key_bindings'] as Map<String, dynamic>)
+          : const KeyBindings(),
     );
   }
 
@@ -218,6 +308,9 @@ class NoctuaConfig {
         'font': font,
         'world_clocks': world_clocks.map((z) => z.toJson()).toList(),
         'alarms': alarms.map((a) => a.toJson()).toList(),
+        'saved_timers': saved_timers.map((t) => t.toJson()).toList(),
+        'timer_pill_edge': timer_pill_edge,
+        'key_bindings':    key_bindings.toJson(),
       };
 
   NoctuaConfig copyWith({
@@ -227,13 +320,19 @@ class NoctuaConfig {
     String? font,
     List<ZoneConfig>? world_clocks,
     List<AlarmConfig>? alarms,
+    List<SavedTimer>? saved_timers,
+    String?      timer_pill_edge,
+    KeyBindings? key_bindings,
   }) =>
       NoctuaConfig(
-        columns: columns ?? this.columns,
-        animation: animation ?? this.animation,
-        animation_params: animation_params ?? this.animation_params,
-        font: font ?? this.font,
-        world_clocks: world_clocks ?? this.world_clocks,
-        alarms: alarms ?? this.alarms,
+        columns:         columns         ?? this.columns,
+        animation:       animation       ?? this.animation,
+        animation_params:animation_params?? this.animation_params,
+        font:            font            ?? this.font,
+        world_clocks:    world_clocks    ?? this.world_clocks,
+        alarms:          alarms          ?? this.alarms,
+        saved_timers:    saved_timers    ?? this.saved_timers,
+        timer_pill_edge: timer_pill_edge ?? this.timer_pill_edge,
+        key_bindings:    key_bindings    ?? this.key_bindings,
       );
 }

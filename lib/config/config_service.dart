@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:xdg_directories/xdg_directories.dart';
@@ -79,6 +80,54 @@ class ConfigService extends ChangeNotifier {
   Future<void> deleteAlarm(String id) async {
     _config = _config.copyWith(
         alarms: _config.alarms.where((a) => a.id != id).toList());
+    notifyListeners();
+    await save();
+  }
+
+  // ── SavedTimer helpers ────────────────────────────────────────────────────
+
+  String _next_timer_id() {
+    if (_config.saved_timers.isEmpty) return '1';
+    final max_id = _config.saved_timers
+        .map((t) => int.tryParse(t.id) ?? 0)
+        .reduce(max);
+    return '${max_id + 1}';
+  }
+
+  Future<void> addSavedTimer(SavedTimer timer) async {
+    final with_id = SavedTimer(
+        id: _next_timer_id(), name: timer.name, seconds: timer.seconds);
+    _config = _config.copyWith(
+        saved_timers: [..._config.saved_timers, with_id]);
+    notifyListeners();
+    await save();
+  }
+
+  Future<void> updateSavedTimer(SavedTimer timer) async {
+    _config = _config.copyWith(
+      saved_timers: _config.saved_timers
+          .map((t) => t.id == timer.id ? timer : t)
+          .toList(),
+    );
+    notifyListeners();
+    await save();
+  }
+
+  Future<void> setKeyBindings(KeyBindings kb) async {
+    _config = _config.copyWith(key_bindings: kb);
+    notifyListeners();
+    await save();
+  }
+
+  Future<void> setTimerPillEdge(String edge) async {
+    _config = _config.copyWith(timer_pill_edge: edge);
+    notifyListeners();
+    await save();
+  }
+
+  Future<void> deleteSavedTimer(String id) async {
+    _config = _config.copyWith(
+        saved_timers: _config.saved_timers.where((t) => t.id != id).toList());
     notifyListeners();
     await save();
   }

@@ -4,12 +4,24 @@ import '../widgets/animated_background.dart';
 import '../theme/color_schemes.dart';
 import '../config/noctua_config.dart';
 
+/// Exposes programmatic vertical navigation for a [ColumnPage].
+/// Assign one instance per column; pass it to [ColumnPage] and call
+/// [goToPrimary] / [goToSecondary] from the keyboard handler.
+class ColumnPageController {
+  VoidCallback? _go_primary;
+  VoidCallback? _go_secondary;
+
+  void goToPrimary()   => _go_primary?.call();
+  void goToSecondary() => _go_secondary?.call();
+}
+
 class ColumnPage extends StatefulWidget {
   final NoctuaColorScheme scheme;
   final Widget primaryScreen;
   final Widget secondaryScreen;
   final String animation;
   final AnimationParams animation_params;
+  final ColumnPageController? controller;
 
   const ColumnPage({
     super.key,
@@ -18,6 +30,7 @@ class ColumnPage extends StatefulWidget {
     required this.secondaryScreen,
     required this.animation,
     required this.animation_params,
+    this.controller,
   });
 
   @override
@@ -36,7 +49,21 @@ class _ColumnPageState extends State<ColumnPage>
   void initState() {
     super.initState();
     _controller = AnimationController(vsync: this);
+    widget.controller?._go_primary   = _goToPrimary;
+    widget.controller?._go_secondary = _goToSecondary;
   }
+
+  void _goToPrimary() => _controller.animateTo(
+        0.0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+
+  void _goToSecondary() => _controller.animateTo(
+        1.0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
 
   @override
   void dispose() {

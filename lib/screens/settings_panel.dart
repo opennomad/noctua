@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../config/config_service.dart';
 import '../theme/color_schemes.dart';
 import '../theme/fonts.dart';
@@ -29,6 +30,8 @@ class _SettingsPanelState extends State<_SettingsPanel> {
   late double        _amplitude;
   late List<String>  _schemes;
   late String        _font;
+  late String        _pill_edge;
+  late KeyBindings   _kb;
 
   @override
   void initState() {
@@ -40,6 +43,8 @@ class _SettingsPanelState extends State<_SettingsPanel> {
     _amplitude = cfg.animation_params.amplitude;
     _schemes   = cfg.columns.map((c) => c.scheme).toList();
     _font      = cfg.font;
+    _pill_edge = cfg.timer_pill_edge;
+    _kb        = cfg.key_bindings;
   }
 
   // ── helpers ────────────────────────────────────────────────────────────────
@@ -63,6 +68,16 @@ class _SettingsPanelState extends State<_SettingsPanel> {
   void _setScheme(int col, String scheme) {
     setState(() => _schemes[col] = scheme);
     widget.svc.setColumnScheme(col, scheme);
+  }
+
+  void _setPillEdge(String val) {
+    setState(() => _pill_edge = val);
+    widget.svc.setTimerPillEdge(val);
+  }
+
+  void _setKeyBindings(KeyBindings kb) {
+    setState(() => _kb = kb);
+    widget.svc.setKeyBindings(kb);
   }
 
   /// Extract the hue from a scheme key — either a named preset or 'hue:NNN'.
@@ -120,6 +135,12 @@ class _SettingsPanelState extends State<_SettingsPanel> {
             const SizedBox(height: 10),
             _fontChips(),
             const SizedBox(height: 20),
+            _keyboardSection(),
+            const SizedBox(height: 20),
+            _sectionLabel('Timer Pills'),
+            const SizedBox(height: 10),
+            _pillEdgeChips(),
+            const SizedBox(height: 20),
             _sectionLabel('Colors'),
             const SizedBox(height: 10),
             _schemeRow(0, 'Clock'),
@@ -157,6 +178,127 @@ class _SettingsPanelState extends State<_SettingsPanel> {
             fontWeight: FontWeight.w600,
           ),
         ),
+      );
+
+  // ── keyboard ───────────────────────────────────────────────────────────────
+
+  Widget _keyboardSection() => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: _sectionLabel('Keyboard')),
+              Transform.scale(
+                scale: 0.75,
+                alignment: Alignment.centerRight,
+                child: Switch(
+                  value: _kb.enabled,
+                  onChanged: (v) => _setKeyBindings(_kb.copyWith(enabled: v)),
+                  activeThumbColor: Colors.white70,
+                  activeTrackColor: Colors.white24,
+                  inactiveThumbColor: Colors.white24,
+                  inactiveTrackColor: Colors.white12,
+                ),
+              ),
+            ],
+          ),
+          if (_kb.enabled) ...[
+            const SizedBox(height: 6),
+            _keyRow('←  Left',  _kb.nav_left,  (k) => _setKeyBindings(_kb.copyWith(nav_left: k))),
+            _keyRow('→  Right', _kb.nav_right, (k) => _setKeyBindings(_kb.copyWith(nav_right: k))),
+            _keyRow('↑  Up',    _kb.nav_up,    (k) => _setKeyBindings(_kb.copyWith(nav_up: k))),
+            _keyRow('↓  Down',  _kb.nav_down,  (k) => _setKeyBindings(_kb.copyWith(nav_down: k))),
+          ],
+        ],
+      );
+
+  Widget _keyRow(String label, String key, ValueChanged<String> on_rebind) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 68,
+              child: Text(label,
+                  style:
+                      const TextStyle(color: Colors.white38, fontSize: 13)),
+            ),
+            GestureDetector(
+              onTap: () async {
+                final captured = await _captureKey(context);
+                if (captured != null) on_rebind(captured);
+              },
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.white24),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  key,
+                  style: const TextStyle(
+                    color: Colors.white60,
+                    fontSize: 12,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+
+  static const _pill_edge_options = [
+    ('left',   'Left',   Icons.border_left),
+    ('right',  'Right',  Icons.border_right),
+    ('bottom', 'Bottom', Icons.border_bottom),
+  ];
+
+  Widget _pillEdgeChips() => Wrap(
+        spacing: 8,
+        children: [
+          for (final (val, label, icon) in _pill_edge_options)
+            GestureDetector(
+              onTap: () => _setPillEdge(val),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: _pill_edge == val
+                      ? Colors.white12
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _pill_edge == val
+                        ? Colors.white38
+                        : Colors.white12,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon,
+                        size: 14,
+                        color: _pill_edge == val
+                            ? Colors.white
+                            : Colors.white54),
+                    const SizedBox(width: 6),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: _pill_edge == val
+                            ? Colors.white
+                            : Colors.white54,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
       );
 
   static const _anim_options = [
@@ -346,4 +488,67 @@ class _HuePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_HuePainter old) => old.hue != hue;
+}
+
+// ── key-capture dialog ────────────────────────────────────────────────────────
+
+Future<String?> _captureKey(BuildContext context) => showDialog<String>(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (_) => const _KeyCaptureDialog(),
+    );
+
+class _KeyCaptureDialog extends StatelessWidget {
+  const _KeyCaptureDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return Focus(
+      autofocus: true,
+      onKeyEvent: (node, event) {
+        if (event is! KeyDownEvent) return KeyEventResult.ignored;
+        // Escape = cancel without binding.
+        if (event.logicalKey == LogicalKeyboardKey.escape) {
+          Navigator.pop(context);
+          return KeyEventResult.handled;
+        }
+        final label = event.logicalKey.keyLabel;
+        if (label.isNotEmpty) {
+          Navigator.pop(context, label);
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: Dialog(
+        backgroundColor: const Color(0xFF1A1A2E),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(32, 32, 32, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.keyboard, color: Colors.white38, size: 36),
+              const SizedBox(height: 16),
+              const Text(
+                'Press a key…',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w300,
+                  letterSpacing: 1,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Esc to cancel',
+                style: TextStyle(color: Colors.white24, fontSize: 12),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

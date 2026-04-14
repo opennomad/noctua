@@ -35,14 +35,17 @@ class _NightClockScreenState extends State<NightClockScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        _time,
-        style: TextStyle(
-          fontSize: 80,
-          fontWeight: FontWeight.w100,
-          letterSpacing: 6,
-          color: Colors.white.withAlpha(51),
+    return Container(
+      color: Colors.black.withAlpha(160),
+      child: Center(
+        child: Text(
+          _time,
+          style: TextStyle(
+            fontSize: 80,
+            fontWeight: FontWeight.w100,
+            letterSpacing: 6,
+            color: Colors.white.withAlpha(40),
+          ),
         ),
       ),
     );
