@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../config/config_service.dart';
 import '../../data/emoji_shortcodes.dart';
+import '../../services/alarm_service.dart';
 
 // ── timer status ──────────────────────────────────────────────────────────────
 
@@ -13,10 +14,12 @@ class _TState {
   Duration total;
   Duration remaining;
   _TStatus status;
+  bool done; // true when expired naturally (not reset)
 
   _TState(this.total)
       : remaining = total,
-        status = _TStatus.idle;
+        status    = _TStatus.idle,
+        done      = false;
 
   bool get is_idle    => status == _TStatus.idle;
   bool get is_running => status == _TStatus.running;
@@ -94,25 +97,41 @@ class _TimerScreenState extends State<TimerScreen>
 
   void _ensureTick() {
     _tick ??= Timer.periodic(const Duration(seconds: 1), (_) {
+      final expired = <String>[];
       bool any = false;
       setState(() {
-        for (final s in _states.values) {
+        for (final entry in _states.entries) {
+          final s = entry.value;
           if (s.is_running) {
             any = true;
             if (s.remaining.inSeconds <= 1) {
               s.remaining = Duration.zero;
-              s.status = _TStatus.idle;
+              s.status    = _TStatus.idle;
+              s.done      = true;
+              expired.add(entry.key);
             } else {
               s.remaining -= const Duration(seconds: 1);
             }
           }
         }
       });
+      for (final id in expired) {
+        AlarmService.cancelTimerEnd(id);
+        AlarmService.notifyTimerDone(_timerName(id));
+      }
       if (!any) {
         _tick?.cancel();
         _tick = null;
       }
     });
+  }
+
+  String _timerName(String id) {
+    if (id == _scratch) return '';
+    return widget.config_service.config.saved_timers
+        .where((t) => t.id == id)
+        .firstOrNull
+        ?.name ?? '';
   }
 
   void _loadSaved(SavedTimer saved) {
@@ -126,31 +145,48 @@ class _TimerScreenState extends State<TimerScreen>
   void _startOrResume() {
     final s = _active;
     if (s.is_idle && _active_id == _scratch) {
-      final d =
-          Duration(hours: _input_h, minutes: _input_m, seconds: _input_s);
+      final d = Duration(hours: _input_h, minutes: _input_m, seconds: _input_s);
       if (d == Duration.zero) return;
-      s.total = d;
+      s.total     = d;
       s.remaining = d;
     }
     if (s.remaining == Duration.zero) return;
-    setState(() => s.status = _TStatus.running);
+    setState(() {
+      s.status = _TStatus.running;
+      s.done   = false;
+    });
+    AlarmService.scheduleTimerEnd(_active_id, s.remaining, _timerName(_active_id));
     _ensureTick();
   }
 
-  void _pause() => setState(() => _active.status = _TStatus.paused);
+  void _pause() {
+    setState(() => _active.status = _TStatus.paused);
+    AlarmService.cancelTimerEnd(_active_id);
+  }
 
-  void _reset() => setState(() {
-        final s = _active;
-        s.remaining = s.total;
-        s.status = _TStatus.idle;
-      });
+  void _reset() {
+    setState(() {
+      final s     = _active;
+      s.remaining = s.total;
+      s.status    = _TStatus.idle;
+      s.done      = false;
+    });
+    AlarmService.cancelTimerEnd(_active_id);
+  }
 
-  void _addMinute() => setState(() {
-        final s = _active;
-        const one_min = Duration(minutes: 1);
-        s.remaining += one_min;
-        s.total     += one_min;
-      });
+  void _addMinute() {
+    setState(() {
+      final s       = _active;
+      const one_min = Duration(minutes: 1);
+      s.remaining  += one_min;
+      s.total      += one_min;
+    });
+    // Update background notification if timer is still running.
+    if (_active.is_running) {
+      AlarmService.scheduleTimerEnd(
+          _active_id, _active.remaining, _timerName(_active_id));
+    }
+  }
 
   // ── saved-timer CRUD ───────────────────────────────────────────────────────
 
@@ -238,13 +274,22 @@ class _TimerScreenState extends State<TimerScreen>
 
   Widget _body(String edge) {
     final s           = _active;
-    final show_picker = s.is_idle && _active_id == _scratch;
+    final show_picker = s.is_idle && !s.done && _active_id == _scratch;
     final saved_name  = _active_id != _scratch
         ? widget.config_service.config.saved_timers
             .where((t) => t.id == _active_id)
             .firstOrNull
             ?.name
         : null;
+
+    Widget main_display;
+    if (s.done) {
+      main_display = _doneDisplay();
+    } else if (show_picker) {
+      main_display = _picker();
+    } else {
+      main_display = _displayText(s);
+    }
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -261,7 +306,7 @@ class _TimerScreenState extends State<TimerScreen>
           ),
           const SizedBox(height: 10),
         ],
-        show_picker ? _picker() : _displayText(s),
+        main_display,
         const SizedBox(height: 48),
         _controls(s),
         if (edge == 'bottom') const SizedBox(height: 80),
@@ -278,6 +323,30 @@ class _TimerScreenState extends State<TimerScreen>
           color: Colors.white,
           fontFeatures: [FontFeature.tabularFigures()],
         ),
+      );
+
+  Widget _doneDisplay() => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '✓',
+            style: TextStyle(
+              fontSize: 80,
+              height: 1.0,
+              color: Colors.white.withAlpha(200),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'done',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w200,
+              letterSpacing: 6,
+              color: Colors.white.withAlpha(140),
+            ),
+          ),
+        ],
       );
 
   // ── scroll picker ──────────────────────────────────────────────────────────
@@ -363,11 +432,11 @@ class _TimerScreenState extends State<TimerScreen>
     // Fixed-width flanking slots keep the centre button visually centred.
     Widget left_slot() => SizedBox(
           width: 64,
-          child: s.is_idle
-              ? null
-              : Center(
+          child: (s.done || !s.is_idle)
+              ? Center(
                   child: _IconBtn(
-                      icon: Icons.refresh, onTap: _reset, size: 28)),
+                      icon: Icons.refresh, onTap: _reset, size: 28))
+              : null,
         );
 
     Widget right_slot() => SizedBox(

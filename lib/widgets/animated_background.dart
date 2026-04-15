@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import '../config/noctua_config.dart';
 import '../theme/color_schemes.dart';
 import 'animations/lava_lamp_painter.dart' show Blob, LavaLampPainter, buildBlobs;
@@ -11,40 +10,40 @@ import 'animations/pulse_painter.dart' show PulsePainter, ringCount;
 ///
 /// Supported [animation] values: 'lava_lamp', 'raindrops', 'wave', 'pulse'.
 ///
-/// Uses a [Ticker] rather than a repeating [AnimationController] so that the
-/// time value passed to painters is monotonically increasing. This prevents
-/// the hard visual reset that occurs when a looping controller jumps from
-/// t=1 back to t=0 while particles are still visible.
+/// Time is supplied externally via [time] — a [ValueNotifier] updated by a
+/// single ticker in the parent [StackNav].  This means all [AnimatedBackground]
+/// instances share one ticker and are always phase-matched, and only the
+/// [CustomPaint] inside each instance repaints each frame (not the whole tree).
 class AnimatedBackground extends StatefulWidget {
   final NoctuaColorScheme scheme;
   final String animation;
   final AnimationParams params;
+
+  /// Monotonically increasing elapsed seconds, driven by [StackNav]'s ticker.
+  final ValueNotifier<double> time;
 
   const AnimatedBackground({
     super.key,
     required this.scheme,
     required this.animation,
     required this.params,
+    required this.time,
   });
 
   @override
   State<AnimatedBackground> createState() => _AnimatedBackgroundState();
 }
 
-class _AnimatedBackgroundState extends State<AnimatedBackground>
-    with SingleTickerProviderStateMixin {
-  late Ticker _ticker;
-  Duration _elapsed = Duration.zero;
-
+class _AnimatedBackgroundState extends State<AnimatedBackground> {
   late List<Blob> _blobs;
   late List<Drop> _drops;
   late List<Wave> _waves;
 
-  // Base cycle duration in seconds for each animation at speed = 1.0
+  // Base cycle duration in seconds for each animation at speed = 1.0.
   static const _base_seconds = {
     'raindrops': 6.0,
-    'wave': 12.0,
-    'pulse': 6.0,
+    'wave':      12.0,
+    'pulse':     6.0,
   };
   static const _lava_base = 20.0;
 
@@ -53,40 +52,31 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
     return base / widget.params.speed.clamp(0.1, 10.0);
   }
 
-  // Monotonically increasing fractional cycle count — never resets.
-  double get _t => _elapsed.inMicroseconds / 1e6 / _cycle_seconds;
+  // Fractional cycle count — never resets.
+  double _t(double elapsed_s) => elapsed_s / _cycle_seconds;
 
   @override
   void initState() {
     super.initState();
     _initElements();
-    _ticker = createTicker((elapsed) {
-      setState(() => _elapsed = elapsed);
-    })..start();
+  }
+
+  @override
+  void didUpdateWidget(AnimatedBackground old) {
+    super.didUpdateWidget(old);
+    if (old.scheme     != widget.scheme     ||
+        old.animation  != widget.animation  ||
+        old.params.density   != widget.params.density   ||
+        old.params.amplitude != widget.params.amplitude) {
+      _initElements();
+    }
+    // Speed changes are picked up automatically via _cycle_seconds.
   }
 
   void _initElements() {
     _blobs = buildBlobs(widget.scheme, widget.params);
     _drops = buildDrops(widget.scheme, widget.params);
     _waves = buildWaves(widget.scheme, widget.params);
-  }
-
-  @override
-  void didUpdateWidget(AnimatedBackground old) {
-    super.didUpdateWidget(old);
-    if (old.scheme != widget.scheme ||
-        old.animation != widget.animation ||
-        old.params.density != widget.params.density ||
-        old.params.amplitude != widget.params.amplitude) {
-      _initElements();
-    }
-    // Speed changes are picked up automatically via _cycle_seconds — no restart needed.
-  }
-
-  @override
-  void dispose() {
-    _ticker.dispose();
-    super.dispose();
   }
 
   CustomPainter _painter(double t) => switch (widget.animation) {
@@ -105,9 +95,12 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _painter(widget.animation == 'none' ? 0 : _t),
-      child: const SizedBox.expand(),
+    return ValueListenableBuilder<double>(
+      valueListenable: widget.time,
+      builder: (context, elapsed_s, child) => CustomPaint(
+        painter: _painter(widget.animation == 'none' ? 0 : _t(elapsed_s)),
+        child: const SizedBox.expand(),
+      ),
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import '../config/noctua_config.dart';
 import '../theme/color_schemes.dart';
 import 'animated_background.dart';
@@ -34,6 +35,10 @@ class StackNav extends StatefulWidget {
 }
 
 class _StackNavState extends State<StackNav> with TickerProviderStateMixin {
+  // ── animation time (shared across both backgrounds) ───────────────────────
+  final _anim_t = ValueNotifier<double>(0.0);
+  late Ticker _anim_ticker;
+
   // ── navigation controller ─────────────────────────────────────────────────
   late AnimationController _ctrl;
 
@@ -92,6 +97,9 @@ class _StackNavState extends State<StackNav> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    _anim_ticker = createTicker(
+        (elapsed) => _anim_t.value = elapsed.inMicroseconds / 1e6)
+      ..start();
     _ctrl = AnimationController(vsync: this);
     _pills_ctrl = AnimationController(vsync: this, duration: _pills_fade_ms);
     _pills_fade = CurvedAnimation(parent: _pills_ctrl, curve: Curves.easeInOut);
@@ -118,6 +126,8 @@ class _StackNavState extends State<StackNav> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    _anim_ticker.dispose();
+    _anim_t.dispose();
     _pills_timer?.cancel();
     _pills_fade.dispose();
     _pills_ctrl.dispose();
@@ -298,6 +308,7 @@ class _StackNavState extends State<StackNav> with TickerProviderStateMixin {
         scheme: schemeByName(slot.scheme),
         animation: widget.animation,
         params: widget.animation_params,
+        time: _anim_t,
       );
 
   @override

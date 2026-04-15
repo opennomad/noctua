@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg-grad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#0D1F3C"/>
+      <stop offset="100%" stop-color="#050D1A"/>
+    </radialGradient>
+    <radialGradient id="eye-glow-l" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#64B5F6" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#64B5F6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="eye-glow-r" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#64B5F6" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#64B5F6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="iris-l" cx="40%" cy="35%" r="60%">
+      <stop offset="0%"   stop-color="#1E6BBF"/>
+      <stop offset="100%" stop-color="#0A2D6E"/>
+    </radialGradient>
+    <radialGradient id="iris-r" cx="40%" cy="35%" r="60%">
+      <stop offset="0%"   stop-color="#1E6BBF"/>
+      <stop offset="100%" stop-color="#0A2D6E"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Outer circle background -->
+  <circle cx="256" cy="256" r="256" fill="url(#bg-grad)"/>
+
+  <!-- Ear tufts -->
+  <polygon points="175,148  195,88  220,152" fill="#0B1A30"/>
+  <polygon points="292,152  317,88  337,148" fill="#0B1A30"/>
+
+  <!-- Head / face disc -->
+  <ellipse cx="256" cy="240" rx="148" ry="140" fill="#0A1828"/>
+
+  <!-- Facial disc rim (lighter) -->
+  <ellipse cx="256" cy="240" rx="148" ry="140"
+    fill="none" stroke="#122040" stroke-width="18"/>
+
+  <!-- Eye ambient glow -->
+  <circle cx="186" cy="222" r="72" fill="url(#eye-glow-l)"/>
+  <circle cx="326" cy="222" r="72" fill="url(#eye-glow-r)"/>
+
+  <!-- Eye sclera -->
+  <circle cx="186" cy="222" r="54" fill="#06122A"/>
+  <circle cx="326" cy="222" r="54" fill="#06122A"/>
+
+  <!-- Eye ring -->
+  <circle cx="186" cy="222" r="54" fill="none" stroke="#64B5F6" stroke-width="3.5"/>
+  <circle cx="326" cy="222" r="54" fill="none" stroke="#64B5F6" stroke-width="3.5"/>
+
+  <!-- Iris -->
+  <circle cx="186" cy="222" r="36" fill="url(#iris-l)"/>
+  <circle cx="326" cy="222" r="36" fill="url(#iris-r)"/>
+
+  <!-- Pupil -->
+  <circle cx="186" cy="222" r="18" fill="#020810"/>
+  <circle cx="326" cy="222" r="18" fill="#020810"/>
+
+  <!-- Catch-light -->
+  <circle cx="196" cy="210" r="7"  fill="#90CAF9" opacity="0.75"/>
+  <circle cx="336" cy="210" r="7"  fill="#90CAF9" opacity="0.75"/>
+
+  <!-- Beak -->
+  <polygon points="256,282  236,316  276,316" fill="#1565C0" opacity="0.9"/>
+  <polygon points="256,282  236,316  276,316"
+    fill="none" stroke="#64B5F6" stroke-width="1.5" opacity="0.5"/>
+
+  <!-- Subtle chest feather texture -->
+  <ellipse cx="256" cy="360" rx="82" ry="55" fill="#081422" opacity="0.6"/>
+
+  <!-- Feet -->
+  <line x1="214" y1="400" x2="190" y2="436" stroke="#1565C0" stroke-width="6" stroke-linecap="round" opacity="0.7"/>
+  <line x1="214" y1="400" x2="208" y2="442" stroke="#1565C0" stroke-width="6" stroke-linecap="round" opacity="0.7"/>
+  <line x1="214" y1="400" x2="226" y2="440" stroke="#1565C0" stroke-width="6" stroke-linecap="round" opacity="0.7"/>
+  <line x1="298" y1="400" x2="286" y2="440" stroke="#1565C0" stroke-width="6" stroke-linecap="round" opacity="0.7"/>
+  <line x1="298" y1="400" x2="304" y2="442" stroke="#1565C0" stroke-width="6" stroke-linecap="round" opacity="0.7"/>
+  <line x1="298" y1="400" x2="322" y2="436" stroke="#1565C0" stroke-width="6" stroke-linecap="round" opacity="0.7"/>
+</svg>

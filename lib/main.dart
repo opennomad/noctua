@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'services/alarm_service.dart';
 import 'config/config_service.dart';
+import 'screens/alarm/alarm_dismiss_sheet.dart';
 import 'screens/clock/clock_screen.dart';
 import 'screens/clock/world_clock_screen.dart';
 import 'screens/alarm/alarm_screen.dart';
@@ -76,17 +78,32 @@ class NoctuaHome extends StatefulWidget {
 
 class _NoctuaHomeState extends State<NoctuaHome> {
   final _stack_ctrl = StackNavController();
+  StreamSubscription<AlarmEvent>? _alarm_sub;
 
   @override
   void initState() {
     super.initState();
     HardwareKeyboard.instance.addHandler(_onKey);
+    _alarm_sub = AlarmService.events.listen(_onAlarmEvent);
   }
 
   @override
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_onKey);
+    _alarm_sub?.cancel();
     super.dispose();
+  }
+
+  void _onAlarmEvent(AlarmEvent event) {
+    if (!mounted) return;
+    if (event.type != AlarmEventType.tapped) return;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isDismissible: false,
+      enableDrag: false,
+      builder: (_) => AlarmDismissSheet(label: event.label),
+    );
   }
 
   bool _onKey(KeyEvent event) {

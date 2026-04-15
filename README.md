@@ -1,36 +1,87 @@
 # noctua
 
-A Flutter clock app for Android with animated backgrounds and a clean, minimal UI.
+![Noctua owl logo](assets/logo.svg)
+
+A Flutter clock app for Linux desktop and Android. Six individually-coloured screens, animated backgrounds, alarm and timer notifications with sound.
 
 ## Screens
 
-Three columns navigable by horizontal swipe:
+Six screens navigable by horizontal swipe, keyboard arrow keys, or the icon pills on the right edge:
 
-| Column | Primary | Secondary (swipe up) |
-|--------|---------|----------------------|
-| Clock  | Digital clock + date | World Clock |
-| Alarm  | Alarm list | Night Clock |
-| Timer  | Timer | Stopwatch |
+| Screen | Description |
+|--------|-------------|
+| **Clock** | Digital clock with date (blue) |
+| **World Clock** | Searchable multi-zone clock; reorderable, custom UTC offset (teal) |
+| **Alarm** | Alarm list with toggle, label, and repeat-day picker (purple) |
+| **Night Clock** | Dimmed full-screen bedside clock (deep red) |
+| **Timer** | Scroll-drum input; multiple simultaneous timers; saved presets (green) |
+| **Stopwatch** | Lap recording; fixed-width layout (amber) |
+
+Each screen has its own colour scheme. All six are configurable in settings.
 
 ## Features
 
-- **Animated backgrounds** — Lava Lamp, Raindrops, Wave, Pulse, or None
-- **Per-column colour schemes** — full hue picker; blue / purple / green presets as defaults
+- **Animated backgrounds** — Lava Lamp, Raindrops, Wave, Pulse, or None; single shared ticker drives all backgrounds simultaneously
+- **Per-screen colour** — full hue picker or named presets (blue / purple / green)
 - **Font selection** — Default, Orbitron, Raleway, Oxanium, Mono, Exo 2
-- **World Clock** — searchable city picker (115 cities), IANA timezone aware (DST-correct), custom UTC offset entry, reorderable / deletable list
-- **Alarms** — add/edit/delete alarms with optional label, one-shot or recurring by day of week; scheduled via `flutter_local_notifications`
-- **Night Clock** — dimmed full-screen clock with animated background for bedside use
-- **Timer** — scroll-drum time input (h / m / s); saved timers as auto-hiding edge pills; simultaneous running timers; +1 m button; `:shortcode:` emoji syntax in timer names (`:tea:`, `:todo:`, etc.)
-- **Stopwatch** — lap recording; stable fixed-width layout prevents horizontal jitter
-- **Keyboard navigation** — arrow keys (configurable) move between columns and screens; disabled while text fields or modals are focused
-- **Settings overlay** — gear icon fades in on touch, auto-hides after 3 s; opens a bottom-sheet panel with keyboard binding editor and timer-pill edge selector
-- **Config file** — human-readable JSON; `~/.config/noctua/noctua_config.json` on Linux, app documents dir on Android
+- **Alarms** — one-shot or recurring by day of week; full-screen notification with **Dismiss** and **Snooze 10 min** actions; audio routed through the alarm stream (bypasses DND on Android)
+- **Timer notifications** — background-safe: a `zonedSchedule` notification fires when the timer expires even if the app is backgrounded; in-app ✓ done indicator
+- **Saved timer presets** — auto-hiding edge pills (left / right / bottom); `:shortcode:` emoji syntax in names (`:tea:`, `:pizza:`, etc.)
+- **Keyboard navigation** — arrow keys (configurable) cycle screens; disabled while text fields or modals are focused
+- **Settings overlay** — gear icon fades in on touch, auto-hides after 3 s; bottom-sheet with animation selector, density/speed/amplitude sliders, font picker, per-screen hue sliders, timer-pill edge, keyboard binding editor
+- **Config file** — human-readable JSON; `~/.config/noctua/noctua_config.json` on Linux, app documents directory on Android
 
 ## Running
 
 ```bash
-mise exec -- flutter run -d linux     # desktop dev
-mise exec -- flutter run              # connected Android device
+mise exec -- flutter run -d linux      # Linux desktop (dev)
+mise exec -- flutter run               # connected Android device
+mise exec -- flutter analyze           # must be clean before committing
+mise exec -- flutter test              # run unit tests
+```
+
+## Project layout
+
+```
+lib/
+  main.dart                  # app entry, NoctuaHome, alarm event subscription
+  config/
+    noctua_config.dart       # AlarmConfig, ZoneConfig, AnimationParams, NoctuaConfig
+    config_service.dart      # ChangeNotifier; load/save/mutate config
+  data/
+    city_list.dart           # 115 curated (city, IANA tz_id) pairs
+  screens/
+    alarm/
+      alarm_screen.dart
+      alarm_edit_sheet.dart
+      alarm_dismiss_sheet.dart   # Dismiss / Snooze 10 min bottom sheet
+      night_clock_screen.dart
+    clock/
+      clock_screen.dart
+      world_clock_screen.dart
+    timer/
+      timer_screen.dart
+      stopwatch_screen.dart
+    settings_panel.dart
+  services/
+    alarm_service.dart       # flutter_local_notifications v21; alarm + timer channels
+  theme/
+    color_schemes.dart       # schemeByName(); schemeFromHue() for hue:NNN keys
+    fonts.dart
+  widgets/
+    animated_background.dart # ValueNotifier<double> time; scoped repaints via ValueListenableBuilder
+    settings_overlay.dart
+    stack_nav.dart           # single Ticker drives all AnimatedBackground instances
+    animations/
+      lava_lamp_painter.dart
+      raindrops_painter.dart
+      wave_painter.dart
+      pulse_painter.dart
+test/
+  config/
+    noctua_config_test.dart  # 45 unit tests: all model classes, migration, edge cases
+  data/
+    emoji_shortcodes_test.dart  # 18 tests: shortcode resolution
 ```
 
 ## Dependencies
@@ -40,5 +91,5 @@ mise exec -- flutter run              # connected Android device
 | `path_provider` | Locate config directory on non-Linux platforms |
 | `xdg_directories` | XDG config path on Linux |
 | `google_fonts` | Runtime font loading |
-| `timezone` | IANA timezone database (DST-correct world clock & alarm scheduling) |
-| `flutter_local_notifications` | Android alarm scheduling |
+| `timezone` | IANA timezone database (DST-correct world clock and alarm scheduling) |
+| `flutter_local_notifications` | Alarm and timer notifications; Dismiss/Snooze actions |

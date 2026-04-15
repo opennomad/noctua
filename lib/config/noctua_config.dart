@@ -254,12 +254,12 @@ class NoctuaConfig {
 
   static NoctuaConfig get defaults => const NoctuaConfig(
         screens: [
-          ScreenSlot(id: 'clock',       scheme: 'blue'),
-          ScreenSlot(id: 'world_clock', scheme: 'blue'),
-          ScreenSlot(id: 'alarm',       scheme: 'purple'),
-          ScreenSlot(id: 'night_clock', scheme: 'purple'),
-          ScreenSlot(id: 'timer',       scheme: 'green'),
-          ScreenSlot(id: 'stopwatch',   scheme: 'green'),
+          ScreenSlot(id: 'clock',       scheme: 'blue'),     // 215° blue
+          ScreenSlot(id: 'world_clock', scheme: 'hue:190'),  // teal
+          ScreenSlot(id: 'alarm',       scheme: 'purple'),   // 275° purple
+          ScreenSlot(id: 'night_clock', scheme: 'hue:5'),    // deep red
+          ScreenSlot(id: 'timer',       scheme: 'green'),    // 130° green
+          ScreenSlot(id: 'stopwatch',   scheme: 'hue:45'),   // amber
         ],
         animation: 'lava_lamp',
         animation_params: AnimationParams(),
