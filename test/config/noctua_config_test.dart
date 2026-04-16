@@ -1,7 +1,89 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:noctua/config/noctua_config.dart';
 
+// ── formatTime ───────────────────────────────────────────────────────────────
+
 void main() {
+  // ── formatTime ──────────────────────────────────────────────────────────────
+
+  group('formatTime', () {
+    group('24h format', () {
+      test('pads single-digit hour and minute', () {
+        expect(formatTime(7, 5, '24h'), '07:05');
+      });
+
+      test('midnight is 00:00', () {
+        expect(formatTime(0, 0, '24h'), '00:00');
+      });
+
+      test('end of day is 23:59', () {
+        expect(formatTime(23, 59, '24h'), '23:59');
+      });
+
+      test('noon is 12:00', () {
+        expect(formatTime(12, 0, '24h'), '12:00');
+      });
+
+      test('two-digit values need no padding', () {
+        expect(formatTime(14, 30, '24h'), '14:30');
+      });
+
+      test('include_seconds appends :SS', () {
+        expect(formatTime(9, 3, '24h', second: 7, include_seconds: true), '09:03:07');
+      });
+
+      test('include_seconds false omits seconds', () {
+        expect(formatTime(9, 3, '24h', second: 7, include_seconds: false), '09:03');
+      });
+
+      test('unknown format falls back to 24h', () {
+        expect(formatTime(14, 0, 'bogus'), '14:00');
+      });
+    });
+
+    group('12h format', () {
+      test('midnight is 12:00 AM', () {
+        expect(formatTime(0, 0, '12h'), '12:00 AM');
+      });
+
+      test('1 AM', () {
+        expect(formatTime(1, 0, '12h'), '1:00 AM');
+      });
+
+      test('11 AM', () {
+        expect(formatTime(11, 59, '12h'), '11:59 AM');
+      });
+
+      test('noon is 12:00 PM', () {
+        expect(formatTime(12, 0, '12h'), '12:00 PM');
+      });
+
+      test('1 PM', () {
+        expect(formatTime(13, 0, '12h'), '1:00 PM');
+      });
+
+      test('11 PM', () {
+        expect(formatTime(23, 59, '12h'), '11:59 PM');
+      });
+
+      test('pads single-digit minute', () {
+        expect(formatTime(9, 5, '12h'), '9:05 AM');
+      });
+
+      test('no leading zero on hour', () {
+        expect(formatTime(7, 30, '12h'), '7:30 AM');
+      });
+
+      test('include_seconds appends :SS before period', () {
+        expect(formatTime(13, 4, '12h', second: 9, include_seconds: true), '1:04:09 PM');
+      });
+
+      test('include_seconds false omits seconds', () {
+        expect(formatTime(13, 4, '12h', second: 9, include_seconds: false), '1:04 PM');
+      });
+    });
+  });
+
   // ── KeyBindings ─────────────────────────────────────────────────────────────
 
   group('KeyBindings', () {
@@ -355,6 +437,9 @@ void main() {
       expect(restored.font,                    original.font);
       expect(restored.timer_pill_edge,         original.timer_pill_edge);
       expect(restored.key_bindings.nav_next,   original.key_bindings.nav_next);
+      expect(restored.time_format,             original.time_format);
+      expect(restored.alarm_sound,             original.alarm_sound);
+      expect(restored.timer_sound,             original.timer_sound);
     });
 
     test('toJson contains all required top-level keys', () {
@@ -363,6 +448,7 @@ void main() {
         'screens', 'animation', 'animation_params', 'font',
         'world_clocks', 'alarms', 'saved_timers',
         'timer_pill_edge', 'key_bindings',
+        'time_format', 'alarm_sound', 'timer_sound',
       ]));
     });
 
@@ -423,6 +509,69 @@ void main() {
     test('fromJson: no screens and no columns falls back to defaults', () {
       final cfg = NoctuaConfig.fromJson({'animation': 'none'});
       expect(cfg.screens, hasLength(6));
+    });
+
+    // ── time_format / alarm_sound / timer_sound ──────────────────────────────
+
+    group('time_format', () {
+      test('default is 24h', () {
+        expect(NoctuaConfig.defaults.time_format, '24h');
+      });
+
+      test('fromJson reads value', () {
+        final cfg = NoctuaConfig.fromJson({'time_format': '12h'});
+        expect(cfg.time_format, '12h');
+      });
+
+      test('fromJson missing key falls back to 24h', () {
+        final cfg = NoctuaConfig.fromJson({});
+        expect(cfg.time_format, '24h');
+      });
+
+      test('toJson preserves value', () {
+        final cfg  = NoctuaConfig.defaults.copyWith(time_format: '12h');
+        expect(cfg.toJson()['time_format'], '12h');
+      });
+    });
+
+    group('alarm_sound', () {
+      test('default is empty string', () {
+        expect(NoctuaConfig.defaults.alarm_sound, '');
+      });
+
+      test('fromJson reads value', () {
+        final cfg = NoctuaConfig.fromJson({'alarm_sound': 'content://media/alarm/1'});
+        expect(cfg.alarm_sound, 'content://media/alarm/1');
+      });
+
+      test('fromJson missing key falls back to empty string', () {
+        expect(NoctuaConfig.fromJson({}).alarm_sound, '');
+      });
+
+      test('toJson preserves value', () {
+        final cfg = NoctuaConfig.defaults.copyWith(alarm_sound: '/usr/share/sounds/test.oga');
+        expect(cfg.toJson()['alarm_sound'], '/usr/share/sounds/test.oga');
+      });
+    });
+
+    group('timer_sound', () {
+      test('default is empty string', () {
+        expect(NoctuaConfig.defaults.timer_sound, '');
+      });
+
+      test('fromJson reads value', () {
+        final cfg = NoctuaConfig.fromJson({'timer_sound': 'content://media/alarm/2'});
+        expect(cfg.timer_sound, 'content://media/alarm/2');
+      });
+
+      test('fromJson missing key falls back to empty string', () {
+        expect(NoctuaConfig.fromJson({}).timer_sound, '');
+      });
+
+      test('toJson preserves value', () {
+        final cfg = NoctuaConfig.defaults.copyWith(timer_sound: '/usr/share/sounds/test.oga');
+        expect(cfg.toJson()['timer_sound'], '/usr/share/sounds/test.oga');
+      });
     });
 
     // ── copyWith ─────────────────────────────────────────────────────────────
