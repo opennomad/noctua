@@ -89,6 +89,11 @@ class _NoctuaHomeState extends State<NoctuaHome> {
     HardwareKeyboard.instance.addHandler(_onKey);
     _alarm_sub = AlarmService.events.listen(_onAlarmEvent);
     widget.config_service.addListener(_onConfigChanged);
+    // Request POST_NOTIFICATIONS and SCHEDULE_EXACT_ALARM after first frame
+    // so the system dialog has a window to attach to.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AlarmService.requestPermissions();
+    });
   }
 
   void _onConfigChanged() {

@@ -127,6 +127,18 @@ class AlarmService {
     _ready = true;
   }
 
+  /// Request POST_NOTIFICATIONS (Android 13+) and SCHEDULE_EXACT_ALARM
+  /// (Android 14+) permissions.  Must be called after the first frame so the
+  /// system dialog has a window to attach to.  No-op on non-Android platforms.
+  static Future<void> requestPermissions() async {
+    if (!Platform.isAndroid) return;
+    final impl = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (impl == null) return;
+    await impl.requestNotificationsPermission();
+    await impl.requestExactAlarmsPermission();
+  }
+
   /// Update stored sound URIs and lazily create any missing channels.
   static Future<void> updateSounds(
       {required String alarm, required String timer}) async {
@@ -193,7 +205,12 @@ class AlarmService {
 
   /// Cancel a specific alarm notification by its notification ID.
   static Future<void> cancelAlarmNotif(int notif_id) async {
-    if (Platform.isLinux) { _stopLinuxSound(); return; }
+    if (Platform.isLinux) {
+      _linux_snooze_timer?.cancel();
+      _linux_snooze_timer = null;
+      _stopLinuxSound();
+      return;
+    }
     if (!Platform.isAndroid) return;
     await _plugin.cancel(id: notif_id);
   }
@@ -233,6 +250,16 @@ class AlarmService {
 
   /// Schedule a snooze notification for 10 minutes from now.
   static Future<void> scheduleSnooze(String label) async {
+    if (Platform.isLinux) {
+      _linux_snooze_timer?.cancel();
+      final display = label.isEmpty ? 'Alarm' : label;
+      _linux_snooze_timer = Timer(const Duration(minutes: 10), () {
+        _linux_snooze_timer = null;
+        _playLinuxSound(uri: _alarm_sound);
+        _event_ctrl.add(AlarmEvent.tapped(display, 0));
+      });
+      return;
+    }
     if (!Platform.isAndroid) return;
     final at = tz.TZDateTime.now(tz.local).add(const Duration(minutes: 10));
     await _plugin.zonedSchedule(
@@ -404,6 +431,7 @@ class AlarmService {
   // fire.  All timers are keyed by alarm id so they can be cancelled cleanly.
 
   static final Map<String, List<Timer>> _linux_timers = {};
+  static Timer? _linux_snooze_timer;
 
   static void _scheduleLinux(AlarmConfig alarm) {
     _cancelLinux(alarm.id);
