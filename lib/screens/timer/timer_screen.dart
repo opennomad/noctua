@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../config/config_service.dart';
 import '../../data/emoji_shortcodes.dart';
 import '../../services/alarm_service.dart';
+import '../../services/timer_persistence.dart';
 
 // ── timer status ──────────────────────────────────────────────────────────────
 
@@ -67,6 +68,7 @@ class _TimerScreenState extends State<TimerScreen>
       duration: const Duration(milliseconds: 400),
     );
     widget.config_service.addListener(_onConfig);
+    _restoreSession();
   }
 
   @override
@@ -82,6 +84,102 @@ class _TimerScreenState extends State<TimerScreen>
   }
 
   void _onConfig() => setState(() {});
+
+  // ── persistence ────────────────────────────────────────────────────────────
+
+  /// Restore timer state persisted from the previous session.
+  Future<void> _restoreSession() async {
+    final session = await TimerPersistence.load();
+    if (session == null || !mounted) return;
+
+    final now_ms = DateTime.now().millisecondsSinceEpoch;
+    bool has_running = false;
+
+    setState(() {
+      _active_id = session.active_id;
+      _input_h   = session.input_h;
+      _input_m   = session.input_m;
+      _input_s   = session.input_s;
+
+      for (final snap in session.timers) {
+        final total = Duration(seconds: snap.total_seconds);
+        final s = _TState(total);
+
+        switch (snap.status) {
+          case 'running':
+            final remaining_ms = (snap.deadline_ms ?? now_ms) - now_ms;
+            if (remaining_ms <= 0) {
+              s.remaining = Duration.zero;
+              s.done      = true;
+            } else {
+              s.remaining = Duration(milliseconds: remaining_ms);
+              s.status    = _TStatus.running;
+              has_running = true;
+            }
+          case 'paused':
+            s.remaining = Duration(seconds: snap.remaining_s ?? 0);
+            s.status    = _TStatus.paused;
+          case 'done':
+            s.remaining = Duration.zero;
+            s.done      = true;
+        }
+        _states[snap.id] = s;
+      }
+    });
+
+    // Jump scroll controllers to the saved scratch-timer input.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _h_ctrl.jumpToItem(_input_h);
+      _m_ctrl.jumpToItem(_input_m);
+      _s_ctrl.jumpToItem(_input_s);
+    });
+
+    if (has_running) _ensureTick();
+  }
+
+  /// Snapshot current non-idle state to disk.  Idle timers are omitted —
+  /// they are reconstructed from SavedTimer config on next launch.
+  void _saveSession() {
+    final now_ms    = DateTime.now().millisecondsSinceEpoch;
+    final snapshots = <TimerSnapshot>[];
+
+    for (final entry in _states.entries) {
+      final s = entry.value;
+      if (s.is_idle && !s.done) continue;
+
+      if (s.is_running) {
+        snapshots.add(TimerSnapshot(
+          id:            entry.key,
+          total_seconds: s.total.inSeconds,
+          status:        'running',
+          deadline_ms:   now_ms + s.remaining.inMilliseconds,
+        ));
+      } else if (s.status == _TStatus.paused) {
+        snapshots.add(TimerSnapshot(
+          id:            entry.key,
+          total_seconds: s.total.inSeconds,
+          status:        'paused',
+          remaining_s:   s.remaining.inSeconds,
+        ));
+      } else if (s.done) {
+        snapshots.add(TimerSnapshot(
+          id:            entry.key,
+          total_seconds: s.total.inSeconds,
+          status:        'done',
+          remaining_s:   0,
+        ));
+      }
+    }
+
+    TimerPersistence.save(TimerSession(
+      active_id: _active_id,
+      input_h:   _input_h,
+      input_m:   _input_m,
+      input_s:   _input_s,
+      timers:    snapshots,
+    ));
+  }
 
   // ── pill visibility ────────────────────────────────────────────────────────
 
@@ -121,6 +219,7 @@ class _TimerScreenState extends State<TimerScreen>
         AlarmService.cancelTimerEnd(id)
             .then((_) => AlarmService.notifyTimerDone(_timerName(id)));
       }
+      if (expired.isNotEmpty) _saveSession();
       if (!any) {
         _tick?.cancel();
         _tick = null;
@@ -159,11 +258,13 @@ class _TimerScreenState extends State<TimerScreen>
     });
     AlarmService.scheduleTimerEnd(_active_id, s.remaining, _timerName(_active_id));
     _ensureTick();
+    _saveSession();
   }
 
   void _pause() {
     setState(() => _active.status = _TStatus.paused);
     AlarmService.cancelTimerEnd(_active_id);
+    _saveSession();
   }
 
   void _reset() {
@@ -174,6 +275,7 @@ class _TimerScreenState extends State<TimerScreen>
       s.done      = false;
     });
     AlarmService.cancelTimerEnd(_active_id);
+    _saveSession();
   }
 
   void _dismiss() {
@@ -185,6 +287,7 @@ class _TimerScreenState extends State<TimerScreen>
       s.status    = _TStatus.idle;
       s.done      = false;
     });
+    _saveSession();
   }
 
   void _addMinute() {
@@ -199,6 +302,7 @@ class _TimerScreenState extends State<TimerScreen>
       AlarmService.scheduleTimerEnd(
           _active_id, _active.remaining, _timerName(_active_id));
     }
+    _saveSession();
   }
 
   // ── saved-timer CRUD ───────────────────────────────────────────────────────
