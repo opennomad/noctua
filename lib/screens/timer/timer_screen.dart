@@ -116,8 +116,10 @@ class _TimerScreenState extends State<TimerScreen>
         }
       });
       for (final id in expired) {
-        AlarmService.cancelTimerEnd(id);
-        AlarmService.notifyTimerDone(_timerName(id));
+        // Cancel the background notification first, then play the done sound.
+        // Sequential await prevents both firing at the same time.
+        AlarmService.cancelTimerEnd(id)
+            .then((_) => AlarmService.notifyTimerDone(_timerName(id)));
       }
       if (!any) {
         _tick?.cancel();
@@ -172,6 +174,17 @@ class _TimerScreenState extends State<TimerScreen>
       s.done      = false;
     });
     AlarmService.cancelTimerEnd(_active_id);
+  }
+
+  void _dismiss() {
+    AlarmService.cancelTimerDone();
+    AlarmService.cancelTimerEnd(_active_id); // belt-and-suspenders: stop background notification too
+    setState(() {
+      final s     = _active;
+      s.remaining = s.total;
+      s.status    = _TStatus.idle;
+      s.done      = false;
+    });
   }
 
   void _addMinute() {
@@ -432,7 +445,7 @@ class _TimerScreenState extends State<TimerScreen>
     // Fixed-width flanking slots keep the centre button visually centred.
     Widget left_slot() => SizedBox(
           width: 64,
-          child: (s.done || !s.is_idle)
+          child: (!s.done && !s.is_idle)
               ? Center(
                   child: _IconBtn(
                       icon: Icons.refresh, onTap: _reset, size: 28))
@@ -441,7 +454,7 @@ class _TimerScreenState extends State<TimerScreen>
 
     Widget right_slot() => SizedBox(
           width: 64,
-          child: show_picker
+          child: (s.done || show_picker)
               ? null
               : Center(child: _PillBtn(label: '+1m', onTap: _addMinute)),
         );
@@ -452,8 +465,12 @@ class _TimerScreenState extends State<TimerScreen>
         left_slot(),
         const SizedBox(width: 16),
         _BigBtn(
-          icon: s.is_running ? Icons.pause : Icons.play_arrow,
-          onTap: s.is_running ? _pause : _startOrResume,
+          icon: s.done
+              ? Icons.check
+              : (s.is_running ? Icons.pause : Icons.play_arrow),
+          onTap: s.done
+              ? _dismiss
+              : (s.is_running ? _pause : _startOrResume),
         ),
         const SizedBox(width: 16),
         right_slot(),

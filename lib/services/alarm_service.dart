@@ -44,10 +44,11 @@ enum AlarmEventType { tapped, dismissed, snoozed }
 class AlarmEvent {
   final AlarmEventType type;
   final String label;
-  const AlarmEvent._(this.type, this.label);
-  factory AlarmEvent.tapped(String l)    => AlarmEvent._(AlarmEventType.tapped,    l);
-  factory AlarmEvent.dismissed(String l) => AlarmEvent._(AlarmEventType.dismissed, l);
-  factory AlarmEvent.snoozed(String l)   => AlarmEvent._(AlarmEventType.snoozed,   l);
+  final int notif_id; // notification ID to cancel when dismissing in-app
+  const AlarmEvent._(this.type, this.label, this.notif_id);
+  factory AlarmEvent.tapped(String l, int id)    => AlarmEvent._(AlarmEventType.tapped,    l, id);
+  factory AlarmEvent.dismissed(String l, int id) => AlarmEvent._(AlarmEventType.dismissed, l, id);
+  factory AlarmEvent.snoozed(String l, int id)   => AlarmEvent._(AlarmEventType.snoozed,   l, id);
 }
 
 // ── AlarmService ──────────────────────────────────────────────────────────────
@@ -130,22 +131,37 @@ class AlarmService {
 
   static void _onForegroundNotifResponse(NotificationResponse r) {
     final label = r.payload ?? '';
+    final id    = r.id ?? 0;
     switch (r.actionId) {
       case 'snooze':
         scheduleSnooze(label);
-        _event_ctrl.add(AlarmEvent.snoozed(label));
+        _event_ctrl.add(AlarmEvent.snoozed(label, id));
       case 'dismiss':
-        _event_ctrl.add(AlarmEvent.dismissed(label));
+        _event_ctrl.add(AlarmEvent.dismissed(label, id));
       default:
         // Bare notification tap — show in-app dismiss UI.
-        _event_ctrl.add(AlarmEvent.tapped(label));
+        _event_ctrl.add(AlarmEvent.tapped(label, id));
     }
+  }
+
+  /// Cancel a specific alarm notification by its notification ID.
+  static Future<void> cancelAlarmNotif(int notif_id) async {
+    if (Platform.isLinux) { _stopLinuxSound(); return; }
+    if (!Platform.isAndroid) return;
+    await _plugin.cancel(id: notif_id);
   }
 
   // ── public alarm API ──────────────────────────────────────────────────────
 
   /// Cancel all pending notifications and reschedule every enabled alarm.
   static Future<void> syncAll(List<AlarmConfig> alarms) async {
+    if (Platform.isLinux) {
+      _cancelAllLinux();
+      for (final alarm in alarms) {
+        if (alarm.enabled) _scheduleLinux(alarm);
+      }
+      return;
+    }
     if (!Platform.isAndroid) return;
     await _plugin.cancelAll();
     for (final alarm in alarms) {
@@ -155,6 +171,7 @@ class AlarmService {
 
   /// Schedule (or reschedule) a single alarm.
   static Future<void> schedule(AlarmConfig alarm) async {
+    if (Platform.isLinux) { _scheduleLinux(alarm); return; }
     if (!Platform.isAndroid) return;
     await _cancelAlarm(alarm);
     if (alarm.enabled) await _schedule(alarm);
@@ -162,6 +179,7 @@ class AlarmService {
 
   /// Cancel all notifications for a single alarm.
   static Future<void> cancel(AlarmConfig alarm) async {
+    if (Platform.isLinux) { _cancelLinux(alarm.id); return; }
     if (!Platform.isAndroid) return;
     await _cancelAlarm(alarm);
   }
@@ -206,6 +224,13 @@ class AlarmService {
     await _plugin.cancel(id: _tnid(id));
   }
 
+  /// Dismiss the timer-done notification (shown by [notifyTimerDone]).
+  static Future<void> cancelTimerDone() async {
+    if (Platform.isLinux) { _stopLinuxSound(); return; }
+    if (!Platform.isAndroid) return;
+    await _plugin.cancel(id: _timer_done_nid);
+  }
+
   /// Fire an immediate timer-done alert with sound.
   /// On Android: heads-up notification.  On Linux: system sound.
   static Future<void> notifyTimerDone(String name) async {
@@ -217,7 +242,7 @@ class AlarmService {
         notificationDetails: _timerNotifDetails(),
       );
     } else if (Platform.isLinux) {
-      _playLinuxSound();
+      await _playLinuxSound();
     }
   }
 
@@ -256,6 +281,8 @@ class AlarmService {
           priority:           Priority.high,
           playSound:          true,
           enableVibration:    true,
+          autoCancel:         true,
+          timeoutAfter:       8000, // silence after 8 s even if not dismissed
         ),
       );
 
@@ -312,19 +339,104 @@ class AlarmService {
     return t;
   }
 
+  // ── Linux alarm timers ────────────────────────────────────────────────────
+  //
+  // flutter_local_notifications has no Linux backend, so we drive alarms with
+  // plain Dart Timers.  Repeating alarms reschedule themselves each time they
+  // fire.  All timers are keyed by alarm id so they can be cancelled cleanly.
+
+  static final Map<String, List<Timer>> _linux_timers = {};
+
+  static void _scheduleLinux(AlarmConfig alarm) {
+    _cancelLinux(alarm.id);
+    if (!alarm.enabled) return;
+    final label = alarm.label.isEmpty ? 'Alarm' : alarm.label;
+    if (alarm.repeat_days.isEmpty) {
+      // One-shot: fire once, then remove.
+      final delay = _nextOccurrenceLocal(alarm.hour, alarm.minute)
+          .difference(DateTime.now());
+      _linux_timers[alarm.id] = [
+        Timer(delay, () {
+          _linux_timers.remove(alarm.id);
+          _playLinuxSound();
+          _event_ctrl.add(AlarmEvent.tapped(label, 0));
+        }),
+      ];
+    } else {
+      // Repeating: one timer per day-of-week; each reschedules itself.
+      _linux_timers[alarm.id] = alarm.repeat_days
+          .map((day) => _linuxRepeatTimer(alarm.id, day + 1, alarm.hour,
+              alarm.minute, label))
+          .toList();
+    }
+  }
+
+  static Timer _linuxRepeatTimer(
+      String alarm_id, int weekday, int hour, int minute, String label) {
+    final delay = _nextWeekdayOccurrenceLocal(weekday, hour, minute)
+        .difference(DateTime.now());
+    return Timer(delay, () {
+      _playLinuxSound();
+      _event_ctrl.add(AlarmEvent.tapped(label, 0));
+      // Reschedule only if the alarm hasn't been cancelled.
+      if (_linux_timers.containsKey(alarm_id)) {
+        final timers = _linux_timers[alarm_id]!;
+        final new_t = _linuxRepeatTimer(alarm_id, weekday, hour, minute, label);
+        final idx = timers.indexWhere((t) => !t.isActive);
+        if (idx >= 0) { timers[idx] = new_t; } else { timers.add(new_t); }
+      }
+    });
+  }
+
+  static void _cancelLinux(String alarm_id) {
+    _linux_timers.remove(alarm_id)?.forEach((t) => t.cancel());
+  }
+
+  static void _cancelAllLinux() {
+    for (final id in _linux_timers.keys.toList()) {
+      _cancelLinux(id);
+    }
+  }
+
+  static DateTime _nextOccurrenceLocal(int hour, int minute) {
+    final now = DateTime.now();
+    var t = DateTime(now.year, now.month, now.day, hour, minute);
+    if (!t.isAfter(now)) t = t.add(const Duration(days: 1));
+    return t;
+  }
+
+  static DateTime _nextWeekdayOccurrenceLocal(
+      int weekday, int hour, int minute) {
+    // weekday: 1 = Mon … 7 = Sun (Dart DateTime convention).
+    // AlarmConfig uses 0 = Mon … 6 = Sun, so callers pass day + 1.
+    final now = DateTime.now();
+    var t = DateTime(now.year, now.month, now.day, hour, minute);
+    while (t.weekday != weekday || !t.isAfter(now)) {
+      t = t.add(const Duration(days: 1));
+    }
+    return t;
+  }
+
   // ── Linux sound ───────────────────────────────────────────────────────────
 
-  static void _playLinuxSound() {
+  static Process? _linux_sound_proc;
+
+  static Future<void> _playLinuxSound() async {
     const candidates = [
       '/usr/share/sounds/freedesktop/stereo/alarm-clock-elapsed.oga',
       '/usr/share/sounds/freedesktop/stereo/complete.oga',
     ];
     for (final path in candidates) {
       if (File(path).existsSync()) {
-        Process.run('paplay', [path]).ignore();
+        _linux_sound_proc = await Process.start('paplay', [path]);
         return;
       }
     }
     stdout.write('\u0007'); // terminal bell fallback
+  }
+
+  static void _stopLinuxSound() {
+    _linux_sound_proc?.kill();
+    _linux_sound_proc = null;
   }
 }

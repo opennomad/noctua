@@ -102,7 +102,7 @@ class _NoctuaHomeState extends State<NoctuaHome> {
       backgroundColor: Colors.transparent,
       isDismissible: false,
       enableDrag: false,
-      builder: (_) => AlarmDismissSheet(label: event.label),
+      builder: (_) => AlarmDismissSheet(label: event.label, notif_id: event.notif_id),
     );
   }
 

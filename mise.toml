@@ -1,2 +1,4 @@
 [tools]
+android-sdk = "latest"
 flutter = "stable"
+java = "temurin-21"

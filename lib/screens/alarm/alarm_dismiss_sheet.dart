@@ -5,7 +5,8 @@ import '../../services/alarm_service.dart';
 /// The user can dismiss the alarm or snooze it for 10 minutes.
 class AlarmDismissSheet extends StatelessWidget {
   final String label;
-  const AlarmDismissSheet({super.key, required this.label});
+  final int notif_id;
+  const AlarmDismissSheet({super.key, required this.label, required this.notif_id});
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +59,7 @@ class AlarmDismissSheet extends StatelessWidget {
                         borderRadius: BorderRadius.circular(10)),
                   ),
                   onPressed: () {
+                    AlarmService.cancelAlarmNotif(notif_id);
                     Navigator.pop(context);
                     AlarmService.scheduleSnooze(label);
                   },
@@ -76,7 +78,10 @@ class AlarmDismissSheet extends StatelessWidget {
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10)),
                   ),
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () {
+                    AlarmService.cancelAlarmNotif(notif_id);
+                    Navigator.pop(context);
+                  },
                 ),
               ),
             ],
