@@ -2,7 +2,7 @@
 
 ![Noctua owl logo](assets/logo.svg)
 
-A Flutter clock app for Linux desktop and Android. Six individually-coloured screens, animated backgrounds, alarm and timer notifications with sound.
+A Flutter clock app for Linux desktop and Android. Six individually-coloured screens, animated backgrounds, alarm and timer notifications with configurable sound.
 
 ## Screens
 
@@ -24,11 +24,13 @@ Each screen has its own colour scheme. All six are configurable in settings.
 - **Animated backgrounds** — Lava Lamp, Raindrops, Wave, Pulse, or None; single shared ticker drives all backgrounds simultaneously
 - **Per-screen colour** — full hue picker or named presets (blue / purple / green)
 - **Font selection** — Default, Orbitron, Raleway, Oxanium, Mono, Exo 2
-- **Alarms** — one-shot or recurring by day of week; full-screen notification with **Dismiss** and **Snooze 10 min** actions; audio routed through the alarm stream (bypasses DND on Android)
-- **Timer notifications** — background-safe: a `zonedSchedule` notification fires when the timer expires even if the app is backgrounded; in-app ✓ done indicator
+- **Time format** — toggle between 24-hour and 12-hour (AM/PM); applies to Clock, Night Clock, World Clock, and Alarm list
+- **Alarms** — one-shot or recurring by day of week; full-screen notification with **Dismiss** and **Snooze 10 min** actions; audio routed through the alarm stream (bypasses DND on Android); Dart Timer-based scheduler on Linux (no notification daemon required)
+- **Timer notifications** — background-safe: a `zonedSchedule` notification fires when the timer expires even if the app is backgrounded; in-app ✓ done indicator silences sound and dismisses
+- **Sound selection** — per-platform ringtone catalogue: Android ringtones enumerated via `RingtoneManager`; Linux plays any `.oga`/`.wav` file from `/usr/share/sounds/freedesktop/stereo`; separate pickers for Alarm Sound and Timer Sound in Settings
 - **Saved timer presets** — auto-hiding edge pills (left / right / bottom); `:shortcode:` emoji syntax in names (`:tea:`, `:pizza:`, etc.)
 - **Keyboard navigation** — arrow keys (configurable) cycle screens; disabled while text fields or modals are focused
-- **Settings overlay** — gear icon fades in on touch, auto-hides after 3 s; bottom-sheet with animation selector, density/speed/amplitude sliders, font picker, per-screen hue sliders, timer-pill edge, keyboard binding editor
+- **Settings overlay** — gear icon fades in on touch, auto-hides after 3 s; bottom-sheet with animation selector, density/speed/amplitude sliders, font picker, per-screen hue sliders, time format toggle, sound pickers, timer-pill edge, keyboard binding editor
 - **Config file** — human-readable JSON; `~/.config/noctua/noctua_config.json` on Linux, app documents directory on Android
 
 ## Running
@@ -64,7 +66,8 @@ lib/
       stopwatch_screen.dart
     settings_panel.dart
   services/
-    alarm_service.dart       # flutter_local_notifications v21; alarm + timer channels
+    alarm_service.dart       # flutter_local_notifications v21 (Android); Dart Timer scheduler (Linux); dynamic channels keyed by sound URI
+    ringtone_service.dart    # cross-platform sound catalogue; Android RingtoneManager via MethodChannel; Linux filesystem scan
   theme/
     color_schemes.dart       # schemeByName(); schemeFromHue() for hue:NNN keys
     fonts.dart
@@ -92,4 +95,4 @@ test/
 | `xdg_directories` | XDG config path on Linux |
 | `google_fonts` | Runtime font loading |
 | `timezone` | IANA timezone database (DST-correct world clock and alarm scheduling) |
-| `flutter_local_notifications` | Alarm and timer notifications; Dismiss/Snooze actions |
+| `flutter_local_notifications` | Alarm and timer notifications; Dismiss/Snooze actions (Android) |
