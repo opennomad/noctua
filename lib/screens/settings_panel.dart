@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../config/config_service.dart';
+import '../services/ringtone_service.dart';
 import '../theme/color_schemes.dart';
 import '../theme/fonts.dart';
 
@@ -33,6 +34,10 @@ class _SettingsPanelState extends State<_SettingsPanel> {
   late String            _pill_edge;
   late KeyBindings       _kb;
   late String            _time_format;
+  late String            _alarm_sound;
+  late String            _timer_sound;
+  List<RingtoneEntry>    _ringtones = [];
+  bool                   _ringtones_loading = false;
 
   static const Map<String, String> _screen_names = {
     'clock':       'Clock',
@@ -56,6 +61,15 @@ class _SettingsPanelState extends State<_SettingsPanel> {
     _pill_edge   = cfg.timer_pill_edge;
     _kb          = cfg.key_bindings;
     _time_format = cfg.time_format;
+    _alarm_sound = cfg.alarm_sound;
+    _timer_sound = cfg.timer_sound;
+    _loadRingtones();
+  }
+
+  Future<void> _loadRingtones() async {
+    setState(() => _ringtones_loading = true);
+    final entries = await RingtoneService.list(type: 'alarm');
+    if (mounted) setState(() { _ringtones = entries; _ringtones_loading = false; });
   }
 
   // ── helpers ────────────────────────────────────────────────────────────────
@@ -116,6 +130,16 @@ class _SettingsPanelState extends State<_SettingsPanel> {
     widget.svc.setTimeFormat(fmt);
   }
 
+  void _setAlarmSound(String uri) {
+    setState(() => _alarm_sound = uri);
+    widget.svc.setAlarmSound(uri);
+  }
+
+  void _setTimerSound(String uri) {
+    setState(() => _timer_sound = uri);
+    widget.svc.setTimerSound(uri);
+  }
+
   /// Extract the hue from a scheme key — either a named preset or 'hue:NNN'.
   double _hueOf(String scheme) {
     if (scheme.startsWith('hue:')) {
@@ -174,6 +198,14 @@ class _SettingsPanelState extends State<_SettingsPanel> {
             _sectionLabel('Time Format'),
             const SizedBox(height: 10),
             _timeFormatToggle(),
+            const SizedBox(height: 20),
+            _sectionLabel('Alarm Sound'),
+            const SizedBox(height: 10),
+            _soundPicker(_alarm_sound, _setAlarmSound),
+            const SizedBox(height: 20),
+            _sectionLabel('Timer Sound'),
+            const SizedBox(height: 10),
+            _soundPicker(_timer_sound, _setTimerSound),
             const SizedBox(height: 20),
             _keyboardSection(),
             const SizedBox(height: 20),
@@ -288,6 +320,45 @@ class _SettingsPanelState extends State<_SettingsPanel> {
     ('right',  'Right',  Icons.border_right),
     ('bottom', 'Bottom', Icons.border_bottom),
   ];
+
+  Widget _soundPicker(String current_uri, ValueChanged<String> on_select) {
+    if (_ringtones_loading) {
+      return const SizedBox(
+        height: 20,
+        width: 20,
+        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white38),
+      );
+    }
+
+    final all = [
+      const RingtoneEntry(title: 'Default', uri: ''),
+      ..._ringtones,
+    ];
+
+    // Ensure current value is in the list (it might be a URI from a previous
+    // install that no longer exists on this device).
+    final valid_uri = all.any((e) => e.uri == current_uri) ? current_uri : '';
+
+    return DropdownButton<String>(
+      value:           valid_uri,
+      dropdownColor:   const Color(0xFF1A1A2E),
+      style:           const TextStyle(fontSize: 13, color: Colors.white),
+      underline:       Container(height: 1, color: Colors.white12),
+      isExpanded:      true,
+      onChanged:       (v) { if (v != null) on_select(v); },
+      items: all
+          .map((e) => DropdownMenuItem<String>(
+                value: e.uri,
+                child: Text(e.title,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        color: e.uri == valid_uri
+                            ? Colors.white
+                            : Colors.white70)),
+              ))
+          .toList(),
+    );
+  }
 
   Widget _timeFormatToggle() => Wrap(
         spacing: 8,

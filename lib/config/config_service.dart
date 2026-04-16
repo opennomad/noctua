@@ -164,6 +164,18 @@ class ConfigService extends ChangeNotifier {
     await save();
   }
 
+  Future<void> setAlarmSound(String uri) async {
+    _config = _config.copyWith(alarm_sound: uri);
+    notifyListeners();
+    await save();
+  }
+
+  Future<void> setTimerSound(String uri) async {
+    _config = _config.copyWith(timer_sound: uri);
+    notifyListeners();
+    await save();
+  }
+
   Future<void> setTimeFormat(String fmt) async {
     _config = _config.copyWith(time_format: fmt);
     notifyListeners();

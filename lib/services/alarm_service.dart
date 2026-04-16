@@ -59,11 +59,25 @@ class AlarmService {
   static final _plugin = FlutterLocalNotificationsPlugin();
   static bool _ready = false;
 
-  // ── channel IDs ───────────────────────────────────────────────────────────
-  static const _alarm_ch_id   = 'noctua_alarms';
-  static const _alarm_ch_name = 'Alarms';
-  static const _timer_ch_id   = 'noctua_timers';
-  static const _timer_ch_name = 'Timers';
+  // ── channel ID helpers ────────────────────────────────────────────────────
+  //
+  // Android notification channels are immutable once created.  We encode the
+  // sound URI into the channel ID so each distinct sound gets its own channel.
+  // Empty uri → 'default'; custom uri → base-36 hash suffix.
+
+  static String _alarmChId(String uri) =>
+      uri.isEmpty ? 'noctua_alarm_default'
+                  : 'noctua_alarm_${uri.hashCode.toRadixString(36)}';
+
+  static String _timerChId(String uri) =>
+      uri.isEmpty ? 'noctua_timer_default'
+                  : 'noctua_timer_${uri.hashCode.toRadixString(36)}';
+
+  static final Set<String> _created_channels = {};
+
+  // Current sound URIs — kept in sync via [updateSounds].
+  static String _alarm_sound = '';
+  static String _timer_sound = '';
 
   // ── well-known notification IDs ───────────────────────────────────────────
   static const snooze_nid     = 88888; // used by background handler too
@@ -85,9 +99,17 @@ class AlarmService {
 
   // ── lifecycle ─────────────────────────────────────────────────────────────
 
-  static Future<void> init() async {
+  /// Call once at startup, and again after the user changes sound settings.
+  static Future<void> init({String alarm_sound = '', String timer_sound = ''}) async {
     if (!Platform.isAndroid) return;
-    if (_ready) return;
+    _alarm_sound = alarm_sound;
+    _timer_sound = timer_sound;
+    if (_ready) {
+      // Already initialised — just ensure channels for the current sounds.
+      await _ensureAlarmChannel(_alarm_sound);
+      await _ensureTimerChannel(_timer_sound);
+      return;
+    }
 
     const android_settings = AndroidInitializationSettings('ic_launcher');
     await _plugin.initialize(
@@ -96,35 +118,60 @@ class AlarmService {
       onDidReceiveBackgroundNotificationResponse: _onBackgroundNotifResponse,
     );
 
-    final impl = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
-
-    // Alarm channel — uses alarm audio stream so it bypasses silent/DND.
-    await impl?.createNotificationChannel(
-      const AndroidNotificationChannel(
-        _alarm_ch_id,
-        _alarm_ch_name,
-        description:          'Noctua alarm notifications',
-        importance:           Importance.max,
-        playSound:            true,
-        enableVibration:      true,
-        audioAttributesUsage: AudioAttributesUsage.alarm,
-      ),
-    );
-
-    // Timer channel — uses notification audio stream (softer).
-    await impl?.createNotificationChannel(
-      const AndroidNotificationChannel(
-        _timer_ch_id,
-        _timer_ch_name,
-        description:     'Noctua timer alerts',
-        importance:      Importance.high,
-        playSound:       true,
-        enableVibration: true,
-      ),
-    );
+    // Create default channels + the currently selected ones.
+    await _ensureAlarmChannel('');
+    await _ensureAlarmChannel(_alarm_sound);
+    await _ensureTimerChannel('');
+    await _ensureTimerChannel(_timer_sound);
 
     _ready = true;
+  }
+
+  /// Update stored sound URIs and lazily create any missing channels.
+  static Future<void> updateSounds(
+      {required String alarm, required String timer}) async {
+    _alarm_sound = alarm;
+    _timer_sound = timer;
+    if (!Platform.isAndroid) return;
+    await _ensureAlarmChannel(alarm);
+    await _ensureTimerChannel(timer);
+  }
+
+  static Future<void> _ensureAlarmChannel(String uri) async {
+    final id = _alarmChId(uri);
+    if (_created_channels.contains(id)) return;
+    final impl = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    final sound = uri.isEmpty ? null : UriAndroidNotificationSound(uri);
+    await impl?.createNotificationChannel(AndroidNotificationChannel(
+      id,
+      'Alarms',
+      description:          'Noctua alarm notifications',
+      importance:           Importance.max,
+      playSound:            true,
+      enableVibration:      true,
+      audioAttributesUsage: AudioAttributesUsage.alarm,
+      sound:                sound,
+    ));
+    _created_channels.add(id);
+  }
+
+  static Future<void> _ensureTimerChannel(String uri) async {
+    final id = _timerChId(uri);
+    if (_created_channels.contains(id)) return;
+    final impl = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    final sound = uri.isEmpty ? null : UriAndroidNotificationSound(uri);
+    await impl?.createNotificationChannel(AndroidNotificationChannel(
+      id,
+      'Timers',
+      description: 'Noctua timer alerts',
+      importance:  Importance.high,
+      playSound:   true,
+      enableVibration: true,
+      sound:       sound,
+    ));
+    _created_channels.add(id);
   }
 
   // ── foreground notification response ─────────────────────────────────────
@@ -242,49 +289,60 @@ class AlarmService {
         notificationDetails: _timerNotifDetails(),
       );
     } else if (Platform.isLinux) {
-      await _playLinuxSound();
+      await _playLinuxSound(uri: _timer_sound);
     }
   }
 
   // ── notification detail factories (public so background handler can reuse) ─
 
-  static NotificationDetails alarmNotifDetails() => const NotificationDetails(
-        android: AndroidNotificationDetails(
-          _alarm_ch_id,
-          _alarm_ch_name,
-          channelDescription:   'Noctua alarm notifications',
-          importance:           Importance.max,
-          priority:             Priority.max,
-          fullScreenIntent:     true,
-          category:             AndroidNotificationCategory.alarm,
-          audioAttributesUsage: AudioAttributesUsage.alarm,
-          actions: [
-            AndroidNotificationAction(
-              'dismiss', 'Dismiss',
-              cancelNotification: true,
-            ),
-            AndroidNotificationAction(
-              'snooze', 'Snooze 10m',
-              cancelNotification: true,
-              showsUserInterface: false,
-            ),
-          ],
-        ),
-      );
+  // alarmNotifDetails() is called by the background isolate (no sound arg there
+  // — it uses the default channel which is always created during init).
+  static NotificationDetails alarmNotifDetails({String sound = ''}) {
+    final ch_id = _alarmChId(sound);
+    return NotificationDetails(
+      android: AndroidNotificationDetails(
+        ch_id,
+        'Alarms',
+        channelDescription:   'Noctua alarm notifications',
+        importance:           Importance.max,
+        priority:             Priority.max,
+        fullScreenIntent:     true,
+        category:             AndroidNotificationCategory.alarm,
+        audioAttributesUsage: AudioAttributesUsage.alarm,
+        sound: sound.isEmpty ? null : UriAndroidNotificationSound(sound),
+        actions: const [
+          AndroidNotificationAction(
+            'dismiss', 'Dismiss',
+            cancelNotification: true,
+          ),
+          AndroidNotificationAction(
+            'snooze', 'Snooze 10m',
+            cancelNotification: true,
+            showsUserInterface: false,
+          ),
+        ],
+      ),
+    );
+  }
 
-  static NotificationDetails _timerNotifDetails() => const NotificationDetails(
-        android: AndroidNotificationDetails(
-          _timer_ch_id,
-          _timer_ch_name,
-          channelDescription: 'Noctua timer alerts',
-          importance:         Importance.high,
-          priority:           Priority.high,
-          playSound:          true,
-          enableVibration:    true,
-          autoCancel:         true,
-          timeoutAfter:       8000, // silence after 8 s even if not dismissed
-        ),
-      );
+  static NotificationDetails _timerNotifDetails() {
+    final ch_id = _timerChId(_timer_sound);
+    final sound = _timer_sound;
+    return NotificationDetails(
+      android: AndroidNotificationDetails(
+        ch_id,
+        'Timers',
+        channelDescription: 'Noctua timer alerts',
+        importance:         Importance.high,
+        priority:           Priority.high,
+        playSound:          true,
+        enableVibration:    true,
+        autoCancel:         true,
+        timeoutAfter:       8000,
+        sound: sound.isEmpty ? null : UriAndroidNotificationSound(sound),
+      ),
+    );
+  }
 
   // ── internals ─────────────────────────────────────────────────────────────
 
@@ -302,7 +360,7 @@ class AlarmService {
         title:               title,
         body:                alarm.time_string,
         scheduledDate:       at,
-        notificationDetails: alarmNotifDetails(),
+        notificationDetails: alarmNotifDetails(sound: _alarm_sound),
         androidScheduleMode: AndroidScheduleMode.alarmClock,
         payload:             title,
       );
@@ -314,7 +372,7 @@ class AlarmService {
           title:                    title,
           body:                     alarm.time_string,
           scheduledDate:            at,
-          notificationDetails:      alarmNotifDetails(),
+          notificationDetails:      alarmNotifDetails(sound: _alarm_sound),
           androidScheduleMode:      AndroidScheduleMode.alarmClock,
           matchDateTimeComponents:  DateTimeComponents.dayOfWeekAndTime,
           payload:                  title,
@@ -358,7 +416,7 @@ class AlarmService {
       _linux_timers[alarm.id] = [
         Timer(delay, () {
           _linux_timers.remove(alarm.id);
-          _playLinuxSound();
+          _playLinuxSound(uri: _alarm_sound);
           _event_ctrl.add(AlarmEvent.tapped(label, 0));
         }),
       ];
@@ -421,8 +479,12 @@ class AlarmService {
 
   static Process? _linux_sound_proc;
 
-  static Future<void> _playLinuxSound() async {
-    const candidates = [
+  static Future<void> _playLinuxSound({String uri = ''}) async {
+    // Use the supplied URI, otherwise fall back to configured sounds,
+    // then freedesktop defaults.
+    final candidates = [
+      if (uri.isNotEmpty) uri,
+      if (_alarm_sound.isNotEmpty) _alarm_sound,
       '/usr/share/sounds/freedesktop/stereo/alarm-clock-elapsed.oga',
       '/usr/share/sounds/freedesktop/stereo/complete.oga',
     ];

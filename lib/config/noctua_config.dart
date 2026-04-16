@@ -257,6 +257,12 @@ class NoctuaConfig {
   /// Clock display format: '24h' or '12h'.
   final String time_format;
 
+  /// URI / path of the alarm sound.  Empty = platform default.
+  final String alarm_sound;
+
+  /// URI / path of the timer-done sound.  Empty = platform default.
+  final String timer_sound;
+
   const NoctuaConfig({
     required this.screens,
     required this.animation,
@@ -272,6 +278,8 @@ class NoctuaConfig {
     this.timer_pill_edge = 'left',
     this.key_bindings  = const KeyBindings(),
     this.time_format   = '24h',
+    this.alarm_sound   = '',
+    this.timer_sound   = '',
   });
 
   static NoctuaConfig get defaults => const NoctuaConfig(
@@ -341,7 +349,9 @@ class NoctuaConfig {
       key_bindings: json['key_bindings'] is Map
           ? KeyBindings.fromJson(json['key_bindings'] as Map<String, dynamic>)
           : const KeyBindings(),
-      time_format: json['time_format'] as String? ?? '24h',
+      time_format:  json['time_format']  as String? ?? '24h',
+      alarm_sound:  json['alarm_sound']  as String? ?? '',
+      timer_sound:  json['timer_sound']  as String? ?? '',
     );
   }
 
@@ -356,6 +366,8 @@ class NoctuaConfig {
         'timer_pill_edge':  timer_pill_edge,
         'key_bindings':     key_bindings.toJson(),
         'time_format':      time_format,
+        'alarm_sound':      alarm_sound,
+        'timer_sound':      timer_sound,
       };
 
   NoctuaConfig copyWith({
@@ -369,6 +381,8 @@ class NoctuaConfig {
     String?            timer_pill_edge,
     KeyBindings?       key_bindings,
     String?            time_format,
+    String?            alarm_sound,
+    String?            timer_sound,
   }) =>
       NoctuaConfig(
         screens:          screens          ?? this.screens,
@@ -381,5 +395,7 @@ class NoctuaConfig {
         timer_pill_edge:  timer_pill_edge  ?? this.timer_pill_edge,
         key_bindings:     key_bindings     ?? this.key_bindings,
         time_format:      time_format      ?? this.time_format,
+        alarm_sound:      alarm_sound      ?? this.alarm_sound,
+        timer_sound:      timer_sound      ?? this.timer_sound,
       );
 }

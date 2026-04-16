@@ -27,11 +27,14 @@ class _DragScrollBehavior extends MaterialScrollBehavior {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   tz_data.initializeTimeZones();
-  await AlarmService.init();
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-
   final config_service = ConfigService();
   await config_service.load();
+
+  await AlarmService.init(
+    alarm_sound: config_service.config.alarm_sound,
+    timer_sound: config_service.config.timer_sound,
+  );
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
   runApp(NoctuaApp(config_service: config_service));
 }
@@ -85,12 +88,22 @@ class _NoctuaHomeState extends State<NoctuaHome> {
     super.initState();
     HardwareKeyboard.instance.addHandler(_onKey);
     _alarm_sub = AlarmService.events.listen(_onAlarmEvent);
+    widget.config_service.addListener(_onConfigChanged);
+  }
+
+  void _onConfigChanged() {
+    final cfg = widget.config_service.config;
+    AlarmService.updateSounds(
+      alarm: cfg.alarm_sound,
+      timer: cfg.timer_sound,
+    );
   }
 
   @override
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_onKey);
     _alarm_sub?.cancel();
+    widget.config_service.removeListener(_onConfigChanged);
     super.dispose();
   }
 
