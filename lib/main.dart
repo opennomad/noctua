@@ -127,10 +127,10 @@ class _NoctuaHomeState extends State<NoctuaHome> {
   }
 
   Widget _buildScreen(String id) => switch (id) {
-    'clock'       => const ClockScreen(),
+    'clock'       => ClockScreen(config_service: widget.config_service),
     'world_clock' => WorldClockScreen(config_service: widget.config_service),
     'alarm'       => AlarmScreen(config_service: widget.config_service),
-    'night_clock' => const NightClockScreen(),
+    'night_clock' => NightClockScreen(config_service: widget.config_service),
     'timer'       => TimerScreen(config_service: widget.config_service),
     'stopwatch'   => const StopwatchScreen(),
     _             => const SizedBox.shrink(),

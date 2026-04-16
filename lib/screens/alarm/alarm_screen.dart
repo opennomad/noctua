@@ -132,7 +132,8 @@ class _AlarmRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    alarm.time_string,
+                    formatTime(alarm.hour, alarm.minute,
+                        config_service.config.time_format),
                     style: TextStyle(
                       fontSize: 36,
                       fontWeight: FontWeight.w100,

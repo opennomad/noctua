@@ -207,6 +207,24 @@ class AnimationParams {
       );
 }
 
+/// Format an hour+minute pair according to [time_format].
+/// [time_format] is '24h' (default) or '12h'.
+/// [include_seconds] adds ':SS' when true.
+String formatTime(int hour, int minute, String time_format,
+    {int second = 0, bool include_seconds = false}) {
+  final m = minute.toString().padLeft(2, '0');
+  final s = second.toString().padLeft(2, '0');
+  if (time_format == '12h') {
+    final period = hour < 12 ? 'AM' : 'PM';
+    final h      = hour % 12 == 0 ? 12 : hour % 12;
+    final base   = '$h:$m';
+    return include_seconds ? '$base:$s $period' : '$base $period';
+  }
+  final h    = hour.toString().padLeft(2, '0');
+  final base = '$h:$m';
+  return include_seconds ? '$base:$s' : base;
+}
+
 /// Root config object written to noctua_config.json.
 class NoctuaConfig {
   /// Ordered list of screens in the navigation stack.
@@ -236,6 +254,9 @@ class NoctuaConfig {
   /// Keyboard navigation bindings.
   final KeyBindings key_bindings;
 
+  /// Clock display format: '24h' or '12h'.
+  final String time_format;
+
   const NoctuaConfig({
     required this.screens,
     required this.animation,
@@ -250,6 +271,7 @@ class NoctuaConfig {
     this.saved_timers  = const [],
     this.timer_pill_edge = 'left',
     this.key_bindings  = const KeyBindings(),
+    this.time_format   = '24h',
   });
 
   static NoctuaConfig get defaults => const NoctuaConfig(
@@ -319,6 +341,7 @@ class NoctuaConfig {
       key_bindings: json['key_bindings'] is Map
           ? KeyBindings.fromJson(json['key_bindings'] as Map<String, dynamic>)
           : const KeyBindings(),
+      time_format: json['time_format'] as String? ?? '24h',
     );
   }
 
@@ -332,6 +355,7 @@ class NoctuaConfig {
         'saved_timers':     saved_timers.map((t) => t.toJson()).toList(),
         'timer_pill_edge':  timer_pill_edge,
         'key_bindings':     key_bindings.toJson(),
+        'time_format':      time_format,
       };
 
   NoctuaConfig copyWith({
@@ -344,6 +368,7 @@ class NoctuaConfig {
     List<SavedTimer>?  saved_timers,
     String?            timer_pill_edge,
     KeyBindings?       key_bindings,
+    String?            time_format,
   }) =>
       NoctuaConfig(
         screens:          screens          ?? this.screens,
@@ -355,5 +380,6 @@ class NoctuaConfig {
         saved_timers:     saved_timers     ?? this.saved_timers,
         timer_pill_edge:  timer_pill_edge  ?? this.timer_pill_edge,
         key_bindings:     key_bindings     ?? this.key_bindings,
+        time_format:      time_format      ?? this.time_format,
       );
 }

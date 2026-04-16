@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../config/config_service.dart';
 
 class NightClockScreen extends StatefulWidget {
-  const NightClockScreen({super.key});
+  final ConfigService config_service;
+  const NightClockScreen({super.key, required this.config_service});
 
   @override
   State<NightClockScreen> createState() => _NightClockScreenState();
@@ -27,24 +29,26 @@ class _NightClockScreenState extends State<NightClockScreen> {
     super.dispose();
   }
 
-  String get _time {
-    final h = _now.hour.toString().padLeft(2, '0');
-    final m = _now.minute.toString().padLeft(2, '0');
-    return '$h:$m';
-  }
+  String get _time => formatTime(
+        _now.hour, _now.minute,
+        widget.config_service.config.time_format,
+      );
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.black.withAlpha(160),
-      child: Center(
-        child: Text(
-          _time,
-          style: TextStyle(
-            fontSize: 80,
-            fontWeight: FontWeight.w100,
-            letterSpacing: 6,
-            color: Colors.white.withAlpha(40),
+    return ListenableBuilder(
+      listenable: widget.config_service,
+      builder: (context, child) => Container(
+        color: Colors.black.withAlpha(160),
+        child: Center(
+          child: Text(
+            _time,
+            style: TextStyle(
+              fontSize: 80,
+              fontWeight: FontWeight.w100,
+              letterSpacing: 6,
+              color: Colors.white.withAlpha(40),
+            ),
           ),
         ),
       ),

@@ -164,6 +164,12 @@ class ConfigService extends ChangeNotifier {
     await save();
   }
 
+  Future<void> setTimeFormat(String fmt) async {
+    _config = _config.copyWith(time_format: fmt);
+    notifyListeners();
+    await save();
+  }
+
   Future<void> setFont(String font) async {
     _config = _config.copyWith(font: font);
     notifyListeners();

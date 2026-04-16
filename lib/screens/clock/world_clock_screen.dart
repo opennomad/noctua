@@ -50,7 +50,8 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
   Future<void> _addZone() async {
     final result = await showDialog<ZoneConfig>(
       context: context,
-      builder: (_) => const _CityPickerDialog(),
+      builder: (_) => _CityPickerDialog(
+            time_format: widget.config_service.config.time_format),
     );
     if (result != null) {
       widget.config_service.setWorldClocks([..._zones, result]);
@@ -110,33 +111,40 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
 
   Widget _readList() => ListenableBuilder(
         listenable: widget.config_service,
-        builder: (ctx, child) => ListView.builder(
-          padding: const EdgeInsets.only(bottom: 16),
-          itemCount: _zones.length,
-          itemBuilder: (ctx, i) =>
-              _ZoneRow(zone: _zones[i], utc_now: _utc_now),
-        ),
+        builder: (ctx, child) {
+          final fmt = widget.config_service.config.time_format;
+          return ListView.builder(
+            padding: const EdgeInsets.only(bottom: 16),
+            itemCount: _zones.length,
+            itemBuilder: (ctx, i) =>
+                _ZoneRow(zone: _zones[i], utc_now: _utc_now, time_format: fmt),
+          );
+        },
       );
 
   Widget _editList() => ListenableBuilder(
         listenable: widget.config_service,
-        builder: (ctx, child) => ReorderableListView.builder(
-          padding: const EdgeInsets.only(bottom: 16),
-          itemCount: _zones.length,
-          onReorder: _reorder,
-          buildDefaultDragHandles: false,
-          proxyDecorator: (child, i, a) => Material(
-            color: Colors.transparent,
-            child: child,
-          ),
-          itemBuilder: (ctx, i) => _EditZoneRow(
-            key: ValueKey('${_zones[i].city}${_zones[i].tz_id}'),
-            index: i,
-            zone: _zones[i],
-            utc_now: _utc_now,
-            on_delete: () => _delete(i),
-          ),
-        ),
+        builder: (ctx, child) {
+          final fmt = widget.config_service.config.time_format;
+          return ReorderableListView.builder(
+            padding: const EdgeInsets.only(bottom: 16),
+            itemCount: _zones.length,
+            onReorder: _reorder,
+            buildDefaultDragHandles: false,
+            proxyDecorator: (child, i, a) => Material(
+              color: Colors.transparent,
+              child: child,
+            ),
+            itemBuilder: (ctx, i) => _EditZoneRow(
+              key: ValueKey('${_zones[i].city}${_zones[i].tz_id}'),
+              index: i,
+              zone: _zones[i],
+              utc_now: _utc_now,
+              time_format: fmt,
+              on_delete: () => _delete(i),
+            ),
+          );
+        },
       );
 }
 
@@ -156,7 +164,7 @@ String _format_offset(int total_minutes) {
   return 'UTC$sign$abs_h:${abs_m.toString().padLeft(2, '0')}';
 }
 
-String _timeString(ZoneConfig zone, DateTime utc_now) {
+String _timeString(ZoneConfig zone, DateTime utc_now, String time_format) {
   try {
     final DateTime local;
     if (_is_custom(zone.tz_id)) {
@@ -164,7 +172,7 @@ String _timeString(ZoneConfig zone, DateTime utc_now) {
     } else {
       local = tz.TZDateTime.from(utc_now, tz.getLocation(zone.tz_id));
     }
-    return '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+    return formatTime(local.hour, local.minute, time_format);
   } catch (_) {
     return '--:--';
   }
@@ -187,8 +195,9 @@ String _offsetLabel(ZoneConfig zone, DateTime utc_now) {
 class _ZoneRow extends StatelessWidget {
   final ZoneConfig zone;
   final DateTime utc_now;
+  final String time_format;
 
-  const _ZoneRow({required this.zone, required this.utc_now});
+  const _ZoneRow({required this.zone, required this.utc_now, required this.time_format});
 
   @override
   Widget build(BuildContext context) {
@@ -213,7 +222,7 @@ class _ZoneRow extends StatelessWidget {
               ],
             ),
           ),
-          Text(_timeString(zone, utc_now),
+          Text(_timeString(zone, utc_now, time_format),
               style: const TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w200,
@@ -231,6 +240,7 @@ class _EditZoneRow extends StatelessWidget {
   final int index;
   final ZoneConfig zone;
   final DateTime utc_now;
+  final String time_format;
   final VoidCallback on_delete;
 
   const _EditZoneRow({
@@ -238,6 +248,7 @@ class _EditZoneRow extends StatelessWidget {
     required this.index,
     required this.zone,
     required this.utc_now,
+    required this.time_format,
     required this.on_delete,
   });
 
@@ -269,7 +280,7 @@ class _EditZoneRow extends StatelessWidget {
               ],
             ),
           ),
-          Text(_timeString(zone, utc_now),
+          Text(_timeString(zone, utc_now, time_format),
               style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w200,
@@ -292,7 +303,8 @@ class _EditZoneRow extends StatelessWidget {
 // ── city picker dialog ────────────────────────────────────────────────────────
 
 class _CityPickerDialog extends StatefulWidget {
-  const _CityPickerDialog();
+  final String time_format;
+  const _CityPickerDialog({required this.time_format});
 
   @override
   State<_CityPickerDialog> createState() => _CityPickerDialogState();
@@ -435,7 +447,7 @@ class _CityPickerDialogState extends State<_CityPickerDialog> {
                 subtitle: Text(_offsetLabel(zone, utc_now),
                     style: const TextStyle(
                         color: Colors.white38, fontSize: 11)),
-                trailing: Text(_timeString(zone, utc_now),
+                trailing: Text(_timeString(zone, utc_now, widget.time_format),
                     style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 16,

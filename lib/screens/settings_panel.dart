@@ -32,6 +32,7 @@ class _SettingsPanelState extends State<_SettingsPanel> {
   late String            _font;
   late String            _pill_edge;
   late KeyBindings       _kb;
+  late String            _time_format;
 
   static const Map<String, String> _screen_names = {
     'clock':       'Clock',
@@ -52,8 +53,9 @@ class _SettingsPanelState extends State<_SettingsPanel> {
     _amplitude = cfg.animation_params.amplitude;
     _screens   = List<ScreenSlot>.from(cfg.screens);
     _font      = cfg.font;
-    _pill_edge = cfg.timer_pill_edge;
-    _kb        = cfg.key_bindings;
+    _pill_edge   = cfg.timer_pill_edge;
+    _kb          = cfg.key_bindings;
+    _time_format = cfg.time_format;
   }
 
   // ── helpers ────────────────────────────────────────────────────────────────
@@ -107,6 +109,11 @@ class _SettingsPanelState extends State<_SettingsPanel> {
   void _setKeyBindings(KeyBindings kb) {
     setState(() => _kb = kb);
     widget.svc.setKeyBindings(kb);
+  }
+
+  void _setTimeFormat(String fmt) {
+    setState(() => _time_format = fmt);
+    widget.svc.setTimeFormat(fmt);
   }
 
   /// Extract the hue from a scheme key — either a named preset or 'hue:NNN'.
@@ -163,6 +170,10 @@ class _SettingsPanelState extends State<_SettingsPanel> {
             _sectionLabel('Font'),
             const SizedBox(height: 10),
             _fontChips(),
+            const SizedBox(height: 20),
+            _sectionLabel('Time Format'),
+            const SizedBox(height: 10),
+            _timeFormatToggle(),
             const SizedBox(height: 20),
             _keyboardSection(),
             const SizedBox(height: 20),
@@ -277,6 +288,41 @@ class _SettingsPanelState extends State<_SettingsPanel> {
     ('right',  'Right',  Icons.border_right),
     ('bottom', 'Bottom', Icons.border_bottom),
   ];
+
+  Widget _timeFormatToggle() => Wrap(
+        spacing: 8,
+        children: [
+          for (final (val, label) in [('24h', '24h'), ('12h', '12 h AM/PM')])
+            GestureDetector(
+              onTap: () => _setTimeFormat(val),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                decoration: BoxDecoration(
+                  color: _time_format == val
+                      ? Colors.white12
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _time_format == val
+                        ? Colors.white38
+                        : Colors.white12,
+                  ),
+                ),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: _time_format == val
+                        ? Colors.white
+                        : Colors.white54,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      );
 
   Widget _pillEdgeChips() => Wrap(
         spacing: 8,
