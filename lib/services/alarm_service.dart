@@ -128,15 +128,23 @@ class AlarmService {
   }
 
   /// Request POST_NOTIFICATIONS (Android 13+) and SCHEDULE_EXACT_ALARM
-  /// (Android 14+) permissions.  Must be called after the first frame so the
-  /// system dialog has a window to attach to.  No-op on non-Android platforms.
+  /// (Android 14+) only when not already granted.  Must be called after the
+  /// first frame so the system dialog has a window to attach to.
+  /// No-op on non-Android platforms.
   static Future<void> requestPermissions() async {
     if (!Platform.isAndroid) return;
     final impl = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     if (impl == null) return;
-    await impl.requestNotificationsPermission();
-    await impl.requestExactAlarmsPermission();
+
+    // POST_NOTIFICATIONS — shows an in-app dialog; only ask once.
+    final notifs_ok = await impl.areNotificationsEnabled() ?? false;
+    if (!notifs_ok) await impl.requestNotificationsPermission();
+
+    // SCHEDULE_EXACT_ALARM — sends the user to system settings; only ask
+    // when the permission is actually missing.
+    final exact_ok = await impl.canScheduleExactNotifications() ?? true;
+    if (!exact_ok) await impl.requestExactAlarmsPermission();
   }
 
   /// Update stored sound URIs and lazily create any missing channels.
