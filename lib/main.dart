@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
+import 'package:timezone/timezone.dart' as tz;
 import 'services/alarm_service.dart';
 import 'config/config_service.dart';
 import 'screens/alarm/alarm_dismiss_sheet.dart';
@@ -27,6 +30,10 @@ class _DragScrollBehavior extends MaterialScrollBehavior {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   tz_data.initializeTimeZones();
+  if (Platform.isAndroid) {
+    final tz_name = await FlutterTimezone.getLocalTimezone();
+    tz.setLocalLocation(tz.getLocation(tz_name));
+  }
   final config_service = ConfigService();
   await config_service.load();
 

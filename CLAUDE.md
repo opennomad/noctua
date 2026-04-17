@@ -52,6 +52,7 @@ lib/
 ## Key conventions
 
 - Flutter 3.41 / Dart 3.11 via `mise`
+- `flutter_timezone` detects device IANA timezone at startup; `tz.setLocalLocation()` is called in `main()` so `tz.local` is correct — without this, one-shot alarms fire at the wrong time (UTC offset error)
 - snake_case locals (lint rules disabled in analysis_options.yaml)
 - `color.withAlpha(int)` — never `.red/.green/.blue` (deprecated)
 - Animations use a `Ticker` for monotonically increasing time — no hard reset loops
