@@ -29,7 +29,7 @@ lib/
     timer/
       timer_screen.dart
       stopwatch_screen.dart
-    settings_panel.dart      # Bottom sheet: animation, params, font, time format, colour mode (dark/light/system), sound pickers, screen enable/reorder
+    settings_panel.dart      # Bottom sheet: animation, params, font, time format, colour mode (dark/light/system), sound pickers, screen enable/reorder; header shows logo.svg + NOCTUA wordmark
     colour_scheme_sheet.dart # Per-screen hue pickers; Dark + Light sections; opened from settings_panel
   services/
     alarm_service.dart       # flutter_local_notifications v21 (Android); Dart Timer scheduler (Linux); dynamic channels per sound URI; requestPermissions() gated on areNotificationsEnabled/canScheduleExactNotifications

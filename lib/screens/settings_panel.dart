@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../config/config_service.dart';
 import '../services/ringtone_service.dart';
 import '../theme/fonts.dart';
@@ -241,6 +242,17 @@ class _SettingsPanelState extends State<_SettingsPanel> {
 
   Widget _handle() => Row(
         children: [
+          SvgPicture.asset('assets/logo.svg', width: 30, height: 30),
+          const SizedBox(width: 10),
+          const Text(
+            'NOCTUA',
+            style: TextStyle(
+              color: Colors.white38,
+              fontSize: 12,
+              letterSpacing: 3.5,
+              fontWeight: FontWeight.w300,
+            ),
+          ),
           const Spacer(),
           SizedBox(
             width: 44,

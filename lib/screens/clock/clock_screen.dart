@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../theme/color_schemes.dart';
 import '../../config/config_service.dart';
 
@@ -53,31 +54,50 @@ class _ClockScreenState extends State<ClockScreen> {
     return ListenableBuilder(
       listenable: widget.config_service,
       builder: (context, child) => SafeArea(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                _time,
-                style: TextStyle(
-                  fontSize: 64,
-                  fontWeight: FontWeight.w100,
-                  letterSpacing: 4,
-                  color: noctuaText(context),
+        child: Stack(
+          children: [
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    _time,
+                    style: TextStyle(
+                      fontSize: 64,
+                      fontWeight: FontWeight.w100,
+                      letterSpacing: 4,
+                      color: noctuaText(context),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    _date,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w300,
+                      letterSpacing: 2,
+                      color: noctuaText(context).withAlpha(178),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Positioned(
+              bottom: 20,
+              left: 0,
+              right: 0,
+              child: Opacity(
+                opacity: 0.12,
+                child: Center(
+                  child: SvgPicture.asset(
+                    'assets/logo.svg',
+                    width: 48,
+                    height: 48,
+                  ),
                 ),
               ),
-              const SizedBox(height: 12),
-              Text(
-                _date,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w300,
-                  letterSpacing: 2,
-                  color: noctuaText(context).withAlpha(178),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
