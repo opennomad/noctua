@@ -840,19 +840,21 @@ class _SavedTimerSheetState extends State<_SavedTimerSheet> {
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _handle(),
-            const SizedBox(height: 16),
-            _nameField(),
-            const SizedBox(height: 4),
-            _shortcodeHint(),
-            const SizedBox(height: 24),
-            _timePicker(),
-            const SizedBox(height: 32),
-            _actions(),
-          ],
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _handle(),
+              const SizedBox(height: 16),
+              _nameField(),
+              const SizedBox(height: 4),
+              _shortcodeHint(),
+              const SizedBox(height: 24),
+              _timePicker(),
+              const SizedBox(height: 32),
+              _actions(),
+            ],
+          ),
         ),
       ),
     );
