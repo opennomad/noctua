@@ -59,9 +59,12 @@ class _SettingsOverlayState extends State<SettingsOverlay>
 
   @override
   Widget build(BuildContext context) {
-    final is_light = widget.config_service.config.color_mode == 'light';
+    final mode = widget.config_service.config.color_mode;
+    final is_light = mode == 'light' ||
+        (mode == 'system' &&
+            MediaQuery.platformBrightnessOf(context) == Brightness.light);
     final icon_color = is_light
-        ? const Color(0xFF1A1A2E).withAlpha(180)
+        ? const Color(0xFF1A1A2E).withAlpha(200)
         : Colors.white.withAlpha(160);
     return Listener(
       behavior: HitTestBehavior.translucent,

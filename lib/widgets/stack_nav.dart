@@ -245,9 +245,10 @@ class _StackNavState extends State<StackNav> with TickerProviderStateMixin {
 
   // ── pills overlay ─────────────────────────────────────────────────────────
 
-  Widget _pillDot(int index, ScreenSlot slot) {
+  Widget _pillDot(int index, ScreenSlot slot, {required bool light}) {
     final is_current = index == _front_page;
     final icon = _icons[slot.id] ?? Icons.circle_outlined;
+    final ink = light ? const Color(0xFF1A1A2E) : Colors.white;
     return GestureDetector(
       onTap: () => _navigate(index),
       child: Container(
@@ -256,28 +257,22 @@ class _StackNavState extends State<StackNav> with TickerProviderStateMixin {
         margin: const EdgeInsets.symmetric(vertical: 5),
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: is_current
-              ? Colors.white.withAlpha(30)
-              : Colors.transparent,
+          color: is_current ? ink.withAlpha(30) : Colors.transparent,
           border: Border.all(
-            color: is_current
-                ? Colors.white.withAlpha(180)
-                : Colors.white.withAlpha(50),
+            color: is_current ? ink.withAlpha(180) : ink.withAlpha(50),
             width: is_current ? 1.5 : 1.0,
           ),
         ),
         child: Icon(
           icon,
           size: 18,
-          color: is_current
-              ? Colors.white.withAlpha(220)
-              : Colors.white.withAlpha(90),
+          color: is_current ? ink.withAlpha(220) : ink.withAlpha(90),
         ),
       ),
     );
   }
 
-  Widget _pillsOverlay(List<ScreenSlot> active) {
+  Widget _pillsOverlay(List<ScreenSlot> active, {required bool light}) {
     return Positioned(
       right: 0,
       top: 0,
@@ -295,7 +290,7 @@ class _StackNavState extends State<StackNav> with TickerProviderStateMixin {
               mainAxisSize: MainAxisSize.min,
               children: [
                 for (int i = 0; i < active.length; i++)
-                  _pillDot(i, active[i]),
+                  _pillDot(i, active[i], light: light),
               ],
             ),
           ),
@@ -374,7 +369,7 @@ class _StackNavState extends State<StackNav> with TickerProviderStateMixin {
               },
             ),
             // ── navigation pills ────────────────────────────────────────
-            _pillsOverlay(active),
+            _pillsOverlay(active, light: light),
           ],
         ),
       ),
