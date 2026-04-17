@@ -306,10 +306,16 @@ class _StackNavState extends State<StackNav> with TickerProviderStateMixin {
 
   // ── build ─────────────────────────────────────────────────────────────────
 
-  bool get _light => widget.color_mode == 'light';
+  bool _effectiveLight(BuildContext context) {
+    switch (widget.color_mode) {
+      case 'light':  return true;
+      case 'system': return MediaQuery.platformBrightnessOf(context) == Brightness.light;
+      default:       return false;
+    }
+  }
 
-  Widget _bg(ScreenSlot slot) => AnimatedBackground(
-        scheme: schemeByName(slot.scheme, light: _light),
+  Widget _bg(ScreenSlot slot, bool light) => AnimatedBackground(
+        scheme: schemeByName(light ? slot.light_scheme : slot.scheme, light: light),
         animation: widget.animation,
         params: widget.animation_params,
         time: _anim_t,
@@ -317,8 +323,8 @@ class _StackNavState extends State<StackNav> with TickerProviderStateMixin {
 
   /// Wraps the keyed screen with the correct [NoctuaSchemeScope] so all
   /// descendant widgets can read [noctuaText(context)].
-  Widget _scopedScreen(ScreenSlot slot) => NoctuaSchemeScope(
-        scheme: schemeByName(slot.scheme, light: _light),
+  Widget _scopedScreen(ScreenSlot slot, bool light) => NoctuaSchemeScope(
+        scheme: schemeByName(light ? slot.light_scheme : slot.scheme, light: light),
         child: _keyedScreen(slot.id),
       );
 
@@ -327,15 +333,16 @@ class _StackNavState extends State<StackNav> with TickerProviderStateMixin {
     final active = _active;
     if (active.isEmpty) return const SizedBox.shrink();
 
+    final light  = _effectiveLight(context);
     final n      = active.length;
     final f_slot  = active[_front_page.clamp(0, n - 1)];
     final tg_slot = active[_target_page.clamp(0, n - 1)];
     final slot_a  = active[_a_page.clamp(0, n - 1)];
     final slot_b  = active[_b_page.clamp(0, n - 1)];
 
-    final front_w  = _scopedScreen(f_slot);
+    final front_w  = _scopedScreen(f_slot, light);
     final target_w = _front_page != _target_page
-        ? _scopedScreen(tg_slot)
+        ? _scopedScreen(tg_slot, light)
         : null;
 
     return Listener(
@@ -357,8 +364,8 @@ class _StackNavState extends State<StackNav> with TickerProviderStateMixin {
                 final op_b = (_a_is_front ? t : 1.0 - t).clamp(0.0, 1.0);
                 return Stack(
                   children: [
-                    Opacity(opacity: op_a, child: _bg(slot_a)),
-                    Opacity(opacity: op_b, child: _bg(slot_b)),
+                    Opacity(opacity: op_a, child: _bg(slot_a, light)),
+                    Opacity(opacity: op_b, child: _bg(slot_b, light)),
                     if (target_w != null)
                       FadeTransition(opacity: _fg_in, child: target_w),
                     FadeTransition(opacity: _fg_out, child: front_w),

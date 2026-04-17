@@ -139,6 +139,15 @@ class ConfigService extends ChangeNotifier {
     await save();
   }
 
+  Future<void> setScreenLightScheme(String id, String scheme) async {
+    final updated = _config.screens
+        .map((s) => s.id == id ? s.copyWith(light_scheme: scheme) : s)
+        .toList();
+    _config = _config.copyWith(screens: updated);
+    notifyListeners();
+    await save();
+  }
+
   Future<void> setKeyBindings(KeyBindings kb) async {
     _config = _config.copyWith(key_bindings: kb);
     notifyListeners();

@@ -583,6 +583,13 @@ class _TimerScreenState extends State<TimerScreen>
     );
   }
 
+  // ── pill helpers ──────────────────────────────────────────────────────────
+
+  /// Scales [alpha] up in light mode so fills/borders have similar visual
+  /// weight to white-on-dark at the same nominal opacity.
+  int _pa(int alpha) =>
+      noctuaIsLight(context) ? (alpha * 2.8).round().clamp(0, 255) : alpha;
+
   // ── pill strip ─────────────────────────────────────────────────────────────
 
   /// [is_side] = left or right edge → vertical strip; false = bottom → horizontal.
@@ -637,10 +644,10 @@ class _TimerScreenState extends State<TimerScreen>
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           color: noctuaText(context).withAlpha(
-              is_active ? (is_running ? 50 : 30) : (is_running ? 25 : 12)),
+              _pa(is_active ? (is_running ? 50 : 30) : (is_running ? 25 : 12))),
           border: Border.all(
             color: noctuaText(context)
-                .withAlpha(is_active ? 100 : (is_running ? 60 : 30)),
+                .withAlpha(_pa(is_active ? 100 : (is_running ? 60 : 30))),
           ),
         ),
         child: Column(
@@ -655,7 +662,7 @@ class _TimerScreenState extends State<TimerScreen>
                 fontSize: 14,
                 height: 1.2,
                 color: noctuaText(context)
-                    .withAlpha(is_active ? 230 : (is_running ? 200 : 160)),
+                    .withAlpha(is_active ? 230 : (is_running ? 200 : 180)),
               ),
             ),
             const SizedBox(height: 4),
@@ -666,7 +673,7 @@ class _TimerScreenState extends State<TimerScreen>
                 fontSize: 13,
                 letterSpacing: 0.5,
                 color: noctuaText(context)
-                    .withAlpha(is_active ? 180 : (is_running ? 150 : 100)),
+                    .withAlpha(is_active ? 200 : (is_running ? 170 : 140)),
               ),
             ),
           ],
@@ -681,9 +688,9 @@ class _TimerScreenState extends State<TimerScreen>
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: noctuaText(context).withAlpha(30)),
+            border: Border.all(color: noctuaText(context).withAlpha(_pa(30))),
           ),
-          child: Icon(Icons.add, color: noctuaText(context).withAlpha(100), size: 16),
+          child: Icon(Icons.add, color: noctuaText(context).withAlpha(_pa(100)), size: 16),
         ),
       );
 
@@ -709,10 +716,10 @@ class _TimerScreenState extends State<TimerScreen>
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           color: noctuaText(context).withAlpha(
-              is_active ? (is_running ? 50 : 30) : (is_running ? 25 : 12)),
+              _pa(is_active ? (is_running ? 50 : 30) : (is_running ? 25 : 12))),
           border: Border.all(
             color: noctuaText(context)
-                .withAlpha(is_active ? 100 : (is_running ? 60 : 30)),
+                .withAlpha(_pa(is_active ? 100 : (is_running ? 60 : 30))),
           ),
         ),
         child: Text(
@@ -720,7 +727,7 @@ class _TimerScreenState extends State<TimerScreen>
           style: TextStyle(
             fontSize: 15,
             color: noctuaText(context)
-                .withAlpha(is_active ? 230 : (is_running ? 180 : 140)),
+                .withAlpha(is_active ? 230 : (is_running ? 200 : 170)),
           ),
         ),
       ),
@@ -733,9 +740,9 @@ class _TimerScreenState extends State<TimerScreen>
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: noctuaText(context).withAlpha(30)),
+            border: Border.all(color: noctuaText(context).withAlpha(_pa(30))),
           ),
-          child: Icon(Icons.add, color: noctuaText(context).withAlpha(100), size: 16),
+          child: Icon(Icons.add, color: noctuaText(context).withAlpha(_pa(100)), size: 16),
         ),
       );
 }

@@ -59,6 +59,10 @@ class _SettingsOverlayState extends State<SettingsOverlay>
 
   @override
   Widget build(BuildContext context) {
+    final is_light = widget.config_service.config.color_mode == 'light';
+    final icon_color = is_light
+        ? const Color(0xFF1A1A2E).withAlpha(180)
+        : Colors.white.withAlpha(160);
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: _onTouch,
@@ -74,7 +78,7 @@ class _SettingsOverlayState extends State<SettingsOverlay>
                 child: IconButton(
                   icon: const Icon(Icons.settings_outlined),
                   iconSize: 22,
-                  color: Colors.white.withAlpha(160),
+                  color: icon_color,
                   tooltip: 'Settings',
                   onPressed: _openSettings,
                 ),

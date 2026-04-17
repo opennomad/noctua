@@ -36,8 +36,11 @@ class ScreenSlot {
   /// One of: 'clock', 'world_clock', 'alarm', 'night_clock', 'timer', 'stopwatch'.
   final String id;
 
-  /// Colour-scheme name: 'blue' | 'purple' | 'green' | 'hue:NNN'.
+  /// Colour-scheme name used in dark mode: 'blue' | 'purple' | 'green' | 'hue:NNN'.
   final String scheme;
+
+  /// Colour-scheme name used in light mode.  Defaults to [scheme] when omitted.
+  final String light_scheme;
 
   /// When false the screen is hidden from the navigation stack.
   final bool enabled;
@@ -45,22 +48,30 @@ class ScreenSlot {
   const ScreenSlot({
     required this.id,
     required this.scheme,
+    String? light_scheme,
     this.enabled = true,
-  });
+  }) : light_scheme = light_scheme ?? scheme;
 
   factory ScreenSlot.fromJson(Map<String, dynamic> j) => ScreenSlot(
-        id:      j['id']      as String? ?? 'clock',
-        scheme:  j['scheme']  as String? ?? 'blue',
-        enabled: j['enabled'] as bool?   ?? true,
+        id:           j['id']           as String? ?? 'clock',
+        scheme:       j['scheme']       as String? ?? 'blue',
+        light_scheme: j['light_scheme'] as String?,
+        enabled:      j['enabled']      as bool?   ?? true,
       );
 
-  Map<String, dynamic> toJson() =>
-      {'id': id, 'scheme': scheme, 'enabled': enabled};
+  Map<String, dynamic> toJson() => {
+        'id':           id,
+        'scheme':       scheme,
+        'light_scheme': light_scheme,
+        'enabled':      enabled,
+      };
 
-  ScreenSlot copyWith({String? scheme, bool? enabled}) => ScreenSlot(
-        id:      id,
-        scheme:  scheme  ?? this.scheme,
-        enabled: enabled ?? this.enabled,
+  ScreenSlot copyWith({String? scheme, String? light_scheme, bool? enabled}) =>
+      ScreenSlot(
+        id:           id,
+        scheme:       scheme       ?? this.scheme,
+        light_scheme: light_scheme ?? this.light_scheme,
+        enabled:      enabled      ?? this.enabled,
       );
 }
 

@@ -41,6 +41,11 @@ class NoctuaSchemeScope extends InheritedWidget {
 Color noctuaText(BuildContext context) =>
     NoctuaSchemeScope.maybeOf(context)?.text ?? Colors.white;
 
+/// Returns true when the active scheme is light-mode (dark text on pale bg).
+/// Useful for adjusting alpha values that were calibrated for white-on-dark.
+bool noctuaIsLight(BuildContext context) =>
+    noctuaText(context).computeLuminance() < 0.5;
+
 // ── Dark presets ──────────────────────────────────────────────────────────────
 
 const blueScheme = NoctuaColorScheme(
@@ -83,9 +88,9 @@ const preset_hues = {'blue': 215.0, 'purple': 275.0, 'green': 130.0};
 /// secondary, darker accent, near-black text.
 NoctuaColorScheme schemeFromHue(double hue, {bool light = false}) {
   if (light) {
-    final primary   = HSLColor.fromAHSL(1, hue,              0.40, 0.93).toColor();
-    final secondary = HSLColor.fromAHSL(1, hue,              0.55, 0.50).toColor();
-    final accent    = HSLColor.fromAHSL(1, (hue + 25) % 360, 0.70, 0.40).toColor();
+    final primary   = HSLColor.fromAHSL(1, hue,              0.55, 0.88).toColor();
+    final secondary = HSLColor.fromAHSL(1, hue,              0.72, 0.42).toColor();
+    final accent    = HSLColor.fromAHSL(1, (hue + 25) % 360, 0.85, 0.32).toColor();
     return NoctuaColorScheme(
       name: 'hue:$hue',
       primary: primary,

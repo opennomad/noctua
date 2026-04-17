@@ -2,3 +2,15 @@
 android-sdk = "latest"
 flutter = "stable"
 java = "temurin-21"
+
+[tasks.linux]
+description = "run the app on linux"
+run = "flutter run -d linux"
+
+[tasks.android]
+description = "run the app on android"
+run = "flutter run -d linux"
+
+[tasks.test]
+description = "run the app"
+run = "flutter test"
