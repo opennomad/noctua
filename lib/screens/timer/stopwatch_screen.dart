@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../theme/color_schemes.dart';
 
 class StopwatchScreen extends StatefulWidget {
   const StopwatchScreen({super.key});
@@ -66,11 +67,11 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const time_style = TextStyle(
+    final time_style = TextStyle(
       fontSize: 64,
       fontWeight: FontWeight.w100,
       letterSpacing: 4,
-      color: Colors.white,
+      color: noctuaText(context),
       fontFeatures: [FontFeature.tabularFigures()],
     );
 
@@ -115,14 +116,14 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
                         Text(
                           'Lap $lap_num',
                           style: TextStyle(
-                            color: Colors.white.withAlpha(128),
+                            color: noctuaText(context).withAlpha(128),
                             fontSize: 13,
                           ),
                         ),
                         Text(
                           _format(split),
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: noctuaText(context),
                             fontSize: 16,
                             fontWeight: FontWeight.w300,
                             fontFeatures: [FontFeature.tabularFigures()],
@@ -165,9 +166,9 @@ class _CircleBtn extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(
-              color: Colors.white.withAlpha(102), width: small ? 1 : 1.5),
+              color: noctuaText(context).withAlpha(102), width: small ? 1 : 1.5),
         ),
-        child: Icon(icon, color: Colors.white, size: icon_size),
+        child: Icon(icon, color: noctuaText(context), size: icon_size),
       ),
     );
   }

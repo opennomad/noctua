@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../theme/color_schemes.dart';
 import '../../config/config_service.dart';
 import '../../services/alarm_service.dart';
 import 'alarm_edit_sheet.dart';
@@ -43,12 +44,12 @@ class AlarmScreen extends StatelessWidget {
                   fontSize: 16,
                   fontWeight: FontWeight.w300,
                   letterSpacing: 4,
-                  color: Colors.white.withAlpha(128),
+                  color: noctuaText(ctx).withAlpha(128),
                 ),
               ),
             ),
             IconButton(
-              icon: const Icon(Icons.add, color: Colors.white54, size: 22),
+              icon: Icon(Icons.add, color: noctuaText(ctx).withAlpha(138), size: 22),
               onPressed: () => showAlarmEditSheet(ctx, config_service),
               tooltip: 'Add alarm',
             ),
@@ -60,7 +61,7 @@ class AlarmScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.alarm, size: 48, color: Colors.white.withAlpha(51)),
+            Icon(Icons.alarm, size: 48, color: noctuaText(ctx).withAlpha(51)),
             const SizedBox(height: 20),
             Text(
               'No alarms',
@@ -68,7 +69,7 @@ class AlarmScreen extends StatelessWidget {
                 fontSize: 16,
                 fontWeight: FontWeight.w300,
                 letterSpacing: 2,
-                color: Colors.white.withAlpha(102),
+                color: noctuaText(ctx).withAlpha(102),
               ),
             ),
             const SizedBox(height: 32),
@@ -79,9 +80,9 @@ class AlarmScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                      color: Colors.white.withAlpha(77), width: 1),
+                      color: noctuaText(ctx).withAlpha(77), width: 1),
                 ),
-                child: const Icon(Icons.add, color: Colors.white, size: 26),
+                child: Icon(Icons.add, color: noctuaText(ctx), size: 26),
               ),
             ),
           ],
@@ -138,7 +139,7 @@ class _AlarmRow extends StatelessWidget {
                       fontSize: 36,
                       fontWeight: FontWeight.w100,
                       letterSpacing: 2,
-                      color: Colors.white.withAlpha(alarm.enabled ? 230 : 120),
+                      color: noctuaText(context).withAlpha(alarm.enabled ? 230 : 120),
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -149,19 +150,19 @@ class _AlarmRow extends StatelessWidget {
                           alarm.label,
                           style: TextStyle(
                             fontSize: 13,
-                            color: Colors.white
+                            color: noctuaText(context)
                                 .withAlpha(alarm.enabled ? 153 : 77),
                           ),
                         ),
                         Text(' · ',
                             style: TextStyle(
-                                color: Colors.white.withAlpha(51))),
+                                color: noctuaText(context).withAlpha(51))),
                       ],
                       Text(
                         alarm.repeat_label,
                         style: TextStyle(
                           fontSize: 13,
-                          color: Colors.white
+                          color: noctuaText(context)
                               .withAlpha(alarm.enabled ? 102 : 51),
                         ),
                       ),
@@ -173,10 +174,10 @@ class _AlarmRow extends StatelessWidget {
             Switch(
               value: alarm.enabled,
               onChanged: _toggle,
-              activeThumbColor: Colors.white70,
-              activeTrackColor: Colors.white24,
-              inactiveThumbColor: Colors.white24,
-              inactiveTrackColor: Colors.white12,
+              activeThumbColor: noctuaText(context).withAlpha(178),
+              activeTrackColor: noctuaText(context).withAlpha(61),
+              inactiveThumbColor: noctuaText(context).withAlpha(61),
+              inactiveTrackColor: noctuaText(context).withAlpha(31),
             ),
           ],
         ),

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../theme/color_schemes.dart';
 import '../../config/config_service.dart';
 import '../../data/emoji_shortcodes.dart';
 import '../../services/alarm_service.dart';
@@ -418,7 +419,7 @@ class _TimerScreenState extends State<TimerScreen>
               fontSize: 22,
               fontWeight: FontWeight.w300,
               letterSpacing: 2,
-              color: Colors.white.withAlpha(120),
+              color: noctuaText(context).withAlpha(120),
             ),
           ),
           const SizedBox(height: 10),
@@ -433,11 +434,11 @@ class _TimerScreenState extends State<TimerScreen>
 
   Widget _displayText(_TState s) => Text(
         _fmt(s.remaining),
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 72,
           fontWeight: FontWeight.w100,
           letterSpacing: 4,
-          color: Colors.white,
+          color: noctuaText(context),
           fontFeatures: [FontFeature.tabularFigures()],
         ),
       );
@@ -450,7 +451,7 @@ class _TimerScreenState extends State<TimerScreen>
             style: TextStyle(
               fontSize: 80,
               height: 1.0,
-              color: Colors.white.withAlpha(200),
+              color: noctuaText(context).withAlpha(200),
             ),
           ),
           const SizedBox(height: 10),
@@ -460,7 +461,7 @@ class _TimerScreenState extends State<TimerScreen>
               fontSize: 20,
               fontWeight: FontWeight.w200,
               letterSpacing: 6,
-              color: Colors.white.withAlpha(140),
+              color: noctuaText(context).withAlpha(140),
             ),
           ),
         ],
@@ -481,13 +482,13 @@ class _TimerScreenState extends State<TimerScreen>
           width: 80,
           height: picker_h,
           child: ShaderMask(
-            shaderCallback: (rect) => const LinearGradient(
+            shaderCallback: (rect) => LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
                 Colors.transparent,
-                Colors.white,
-                Colors.white,
+                noctuaText(context),
+                noctuaText(context),
                 Colors.transparent,
               ],
               stops: [0.0, 0.2, 0.8, 1.0],
@@ -504,11 +505,11 @@ class _TimerScreenState extends State<TimerScreen>
                 builder: (ctx, i) => Center(
                   child: Text(
                     i.toString().padLeft(2, '0'),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 44,
                       fontWeight: FontWeight.w100,
                       letterSpacing: 2,
-                      color: Colors.white,
+                      color: noctuaText(context),
                     ),
                   ),
                 ),
@@ -517,14 +518,14 @@ class _TimerScreenState extends State<TimerScreen>
           ),
         );
 
-    Widget sep() => const Padding(
+    Widget sep() => Padding(
           padding: EdgeInsets.only(bottom: 10),
           child: Text(
             ':',
             style: TextStyle(
               fontSize: 36,
               fontWeight: FontWeight.w100,
-              color: Colors.white54,
+              color: noctuaText(context).withAlpha(138),
             ),
           ),
         );
@@ -635,10 +636,10 @@ class _TimerScreenState extends State<TimerScreen>
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          color: Colors.white.withAlpha(
+          color: noctuaText(context).withAlpha(
               is_active ? (is_running ? 50 : 30) : (is_running ? 25 : 12)),
           border: Border.all(
-            color: Colors.white
+            color: noctuaText(context)
                 .withAlpha(is_active ? 100 : (is_running ? 60 : 30)),
           ),
         ),
@@ -653,7 +654,7 @@ class _TimerScreenState extends State<TimerScreen>
               style: TextStyle(
                 fontSize: 14,
                 height: 1.2,
-                color: Colors.white
+                color: noctuaText(context)
                     .withAlpha(is_active ? 230 : (is_running ? 200 : 160)),
               ),
             ),
@@ -664,7 +665,7 @@ class _TimerScreenState extends State<TimerScreen>
               style: TextStyle(
                 fontSize: 13,
                 letterSpacing: 0.5,
-                color: Colors.white
+                color: noctuaText(context)
                     .withAlpha(is_active ? 180 : (is_running ? 150 : 100)),
               ),
             ),
@@ -680,9 +681,9 @@ class _TimerScreenState extends State<TimerScreen>
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withAlpha(30)),
+            border: Border.all(color: noctuaText(context).withAlpha(30)),
           ),
-          child: Icon(Icons.add, color: Colors.white.withAlpha(100), size: 16),
+          child: Icon(Icons.add, color: noctuaText(context).withAlpha(100), size: 16),
         ),
       );
 
@@ -707,10 +708,10 @@ class _TimerScreenState extends State<TimerScreen>
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          color: Colors.white.withAlpha(
+          color: noctuaText(context).withAlpha(
               is_active ? (is_running ? 50 : 30) : (is_running ? 25 : 12)),
           border: Border.all(
-            color: Colors.white
+            color: noctuaText(context)
                 .withAlpha(is_active ? 100 : (is_running ? 60 : 30)),
           ),
         ),
@@ -718,7 +719,7 @@ class _TimerScreenState extends State<TimerScreen>
           label,
           style: TextStyle(
             fontSize: 15,
-            color: Colors.white
+            color: noctuaText(context)
                 .withAlpha(is_active ? 230 : (is_running ? 180 : 140)),
           ),
         ),
@@ -732,9 +733,9 @@ class _TimerScreenState extends State<TimerScreen>
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withAlpha(30)),
+            border: Border.all(color: noctuaText(context).withAlpha(30)),
           ),
-          child: Icon(Icons.add, color: Colors.white.withAlpha(100), size: 16),
+          child: Icon(Icons.add, color: noctuaText(context).withAlpha(100), size: 16),
         ),
       );
 }
@@ -841,7 +842,7 @@ class _SavedTimerSheetState extends State<_SavedTimerSheet> {
           width: 40,
           height: 4,
           decoration: BoxDecoration(
-            color: Colors.white24,
+            color: noctuaText(context).withAlpha(61),
             borderRadius: BorderRadius.circular(2),
           ),
         ),
@@ -849,15 +850,15 @@ class _SavedTimerSheetState extends State<_SavedTimerSheet> {
 
   Widget _nameField() => TextField(
         controller: _name_ctrl,
-        style: const TextStyle(color: Colors.white, fontSize: 20),
+        style: TextStyle(color: noctuaText(context), fontSize: 20),
         textAlign: TextAlign.center,
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           hintText: 'Name or emoji',
-          hintStyle: TextStyle(color: Colors.white30),
+          hintStyle: TextStyle(color: noctuaText(context).withAlpha(77)),
           enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: Colors.white24)),
+              borderSide: BorderSide(color: noctuaText(context).withAlpha(61))),
           focusedBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: Colors.white54)),
+              borderSide: BorderSide(color: noctuaText(context).withAlpha(138))),
         ),
       );
 
@@ -866,7 +867,7 @@ class _SavedTimerSheetState extends State<_SavedTimerSheet> {
         textAlign: TextAlign.center,
         style: TextStyle(
           fontSize: 11,
-          color: Colors.white.withAlpha(60),
+          color: noctuaText(context).withAlpha(60),
           letterSpacing: 0.3,
         ),
       );
@@ -884,13 +885,13 @@ class _SavedTimerSheetState extends State<_SavedTimerSheet> {
           width: 72,
           height: picker_h,
           child: ShaderMask(
-            shaderCallback: (rect) => const LinearGradient(
+            shaderCallback: (rect) => LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
                 Colors.transparent,
-                Colors.white,
-                Colors.white,
+                noctuaText(context),
+                noctuaText(context),
                 Colors.transparent,
               ],
               stops: [0.0, 0.2, 0.8, 1.0],
@@ -907,10 +908,10 @@ class _SavedTimerSheetState extends State<_SavedTimerSheet> {
                 builder: (ctx, i) => Center(
                   child: Text(
                     i.toString().padLeft(2, '0'),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 36,
                       fontWeight: FontWeight.w100,
-                      color: Colors.white,
+                      color: noctuaText(context),
                     ),
                   ),
                 ),
@@ -919,14 +920,14 @@ class _SavedTimerSheetState extends State<_SavedTimerSheet> {
           ),
         );
 
-    Widget sep() => const Padding(
+    Widget sep() => Padding(
           padding: EdgeInsets.only(bottom: 8),
           child: Text(
             ':',
             style: TextStyle(
               fontSize: 30,
               fontWeight: FontWeight.w100,
-              color: Colors.white54,
+              color: noctuaText(context).withAlpha(138),
             ),
           ),
         );
@@ -955,15 +956,15 @@ class _SavedTimerSheetState extends State<_SavedTimerSheet> {
           const Spacer(),
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel',
-                style: TextStyle(color: Colors.white38)),
+            child: Text('Cancel',
+                style: TextStyle(color: noctuaText(context).withAlpha(97))),
           ),
           const SizedBox(width: 8),
           ElevatedButton(
             onPressed: _save,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white24,
-              foregroundColor: Colors.white,
+              backgroundColor: noctuaText(context).withAlpha(61),
+              foregroundColor: noctuaText(context),
               elevation: 0,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10)),
@@ -989,13 +990,13 @@ class _PillBtn extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withAlpha(77)),
+            border: Border.all(color: noctuaText(context).withAlpha(77)),
           ),
           child: Text(
             label,
             style: TextStyle(
               fontSize: 14,
-              color: Colors.white.withAlpha(178),
+              color: noctuaText(context).withAlpha(178),
             ),
           ),
         ),
@@ -1012,7 +1013,7 @@ class _IconBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) => GestureDetector(
         onTap: onTap,
-        child: Icon(icon, color: Colors.white.withAlpha(178), size: size),
+        child: Icon(icon, color: noctuaText(context).withAlpha(178), size: size),
       );
 }
 
@@ -1031,9 +1032,9 @@ class _BigBtn extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border:
-                Border.all(color: Colors.white.withAlpha(102), width: 1.5),
+                Border.all(color: noctuaText(context).withAlpha(102), width: 1.5),
           ),
-          child: Icon(icon, color: Colors.white, size: 36),
+          child: Icon(icon, color: noctuaText(context), size: 36),
         ),
       );
 }

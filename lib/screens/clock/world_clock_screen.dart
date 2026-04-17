@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../theme/color_schemes.dart';
 import 'package:timezone/timezone.dart' as tz;
 import '../../config/config_service.dart';
 import '../../data/city_list.dart';
@@ -86,20 +87,20 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
                   fontSize: 16,
                   fontWeight: FontWeight.w300,
                   letterSpacing: 4,
-                  color: Colors.white.withAlpha(128),
+                  color: noctuaText(context).withAlpha(128),
                 ),
               ),
             ),
             if (_editing)
               IconButton(
-                icon: const Icon(Icons.add, color: Colors.white54, size: 20),
+                icon: Icon(Icons.add, color: noctuaText(context).withAlpha(138), size: 20),
                 onPressed: _addZone,
                 tooltip: 'Add city',
               ),
             IconButton(
               icon: Icon(
                 _editing ? Icons.check : Icons.edit_outlined,
-                color: Colors.white54,
+                color: noctuaText(context).withAlpha(138),
                 size: 18,
               ),
               onPressed: () => setState(() => _editing = !_editing),
@@ -210,24 +211,24 @@ class _ZoneRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(zone.city,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w400,
-                        color: Colors.white)),
+                        color: noctuaText(context))),
                 Text(_offsetLabel(zone, utc_now),
                     style: TextStyle(
                         fontSize: 11,
-                        color: Colors.white.withAlpha(102),
+                        color: noctuaText(context).withAlpha(102),
                         letterSpacing: 1)),
               ],
             ),
           ),
           Text(_timeString(zone, utc_now, time_format),
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w200,
                   letterSpacing: 2,
-                  color: Colors.white)),
+                  color: noctuaText(context))),
         ],
       ),
     );
@@ -260,7 +261,7 @@ class _EditZoneRow extends StatelessWidget {
         children: [
           ReorderableDragStartListener(
             index: index,
-            child: const Icon(Icons.drag_handle, color: Colors.white24, size: 20),
+            child: Icon(Icons.drag_handle, color: noctuaText(context).withAlpha(61), size: 20),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -268,24 +269,24 @@ class _EditZoneRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(zone.city,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w400,
-                        color: Colors.white)),
+                        color: noctuaText(context))),
                 Text(_offsetLabel(zone, utc_now),
                     style: TextStyle(
                         fontSize: 11,
-                        color: Colors.white.withAlpha(102),
+                        color: noctuaText(context).withAlpha(102),
                         letterSpacing: 1)),
               ],
             ),
           ),
           Text(_timeString(zone, utc_now, time_format),
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w200,
                   letterSpacing: 2,
-                  color: Colors.white)),
+                  color: noctuaText(context))),
           const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.remove_circle_outline,
@@ -363,7 +364,7 @@ class _CityPickerDialogState extends State<_CityPickerDialog> {
       child: Column(
         children: [
           _dialogHeader(),
-          const Divider(color: Colors.white12, height: 1),
+          Divider(color: noctuaText(context).withAlpha(31), height: 1),
           Expanded(child: _custom_mode ? _customForm() : _cityList()),
         ],
       ),
@@ -377,37 +378,37 @@ class _CityPickerDialogState extends State<_CityPickerDialog> {
           children: [
             if (_custom_mode)
               IconButton(
-                icon: const Icon(Icons.arrow_back,
-                    color: Colors.white54, size: 18),
+                icon: Icon(Icons.arrow_back,
+                    color: noctuaText(context).withAlpha(138), size: 18),
                 onPressed: _toggleCustom,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
               ),
             Expanded(
               child: _custom_mode
-                  ? const Text('Custom city',
+                  ? Text('Custom city',
                       style: TextStyle(
-                          color: Colors.white70,
+                          color: noctuaText(context).withAlpha(178),
                           fontSize: 15,
                           fontWeight: FontWeight.w300))
                   : TextField(
                       controller: _search_ctrl,
                       autofocus: true,
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: noctuaText(context)),
                       decoration: InputDecoration(
                         hintText: 'Search cities…',
-                        hintStyle: const TextStyle(color: Colors.white38),
-                        prefixIcon: const Icon(Icons.search,
-                            color: Colors.white38, size: 20),
+                        hintStyle: TextStyle(color: noctuaText(context).withAlpha(97)),
+                        prefixIcon: Icon(Icons.search,
+                            color: noctuaText(context).withAlpha(97), size: 20),
                         suffixIcon: _search_ctrl.text.isNotEmpty
                             ? IconButton(
-                                icon: const Icon(Icons.clear,
-                                    color: Colors.white38, size: 18),
+                                icon: Icon(Icons.clear,
+                                    color: noctuaText(context).withAlpha(97), size: 18),
                                 onPressed: () => _search_ctrl.clear(),
                               )
                             : null,
                         filled: true,
-                        fillColor: Colors.white10,
+                        fillColor: noctuaText(context).withAlpha(26),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
                           borderSide: BorderSide.none,
@@ -420,8 +421,8 @@ class _CityPickerDialogState extends State<_CityPickerDialog> {
             if (!_custom_mode)
               TextButton(
                 onPressed: _toggleCustom,
-                child: const Text('Custom',
-                    style: TextStyle(color: Colors.white38, fontSize: 13)),
+                child: Text('Custom',
+                    style: TextStyle(color: noctuaText(context).withAlpha(97), fontSize: 13)),
               ),
           ],
         ),
@@ -431,9 +432,9 @@ class _CityPickerDialogState extends State<_CityPickerDialog> {
   Widget _cityList() {
     final utc_now = DateTime.now().toUtc();
     return _filtered.isEmpty
-        ? const Center(
+        ? Center(
             child: Text('No cities found',
-                style: TextStyle(color: Colors.white38)))
+                style: TextStyle(color: noctuaText(context).withAlpha(97))))
         : ListView.builder(
             itemCount: _filtered.length,
             itemBuilder: (_, i) {
@@ -442,14 +443,14 @@ class _CityPickerDialogState extends State<_CityPickerDialog> {
               return ListTile(
                 dense: true,
                 title: Text(city,
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 15)),
+                    style: TextStyle(
+                        color: noctuaText(context), fontSize: 15)),
                 subtitle: Text(_offsetLabel(zone, utc_now),
-                    style: const TextStyle(
-                        color: Colors.white38, fontSize: 11)),
+                    style: TextStyle(
+                        color: noctuaText(context).withAlpha(97), fontSize: 11)),
                 trailing: Text(_timeString(zone, utc_now, widget.time_format),
-                    style: const TextStyle(
-                        color: Colors.white70,
+                    style: TextStyle(
+                        color: noctuaText(context).withAlpha(178),
                         fontSize: 16,
                         fontWeight: FontWeight.w200,
                         letterSpacing: 1)),
@@ -476,15 +477,15 @@ class _CityPickerDialogState extends State<_CityPickerDialog> {
           TextField(
             controller: _city_ctrl,
             autofocus: true,
-            style: const TextStyle(color: Colors.white),
+            style: TextStyle(color: noctuaText(context)),
             textCapitalization: TextCapitalization.words,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'City name',
-              labelStyle: TextStyle(color: Colors.white54),
+              labelStyle: TextStyle(color: noctuaText(context).withAlpha(138)),
               enabledBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: Colors.white24)),
+                  borderSide: BorderSide(color: noctuaText(context).withAlpha(61))),
               focusedBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: Colors.white54)),
+                  borderSide: BorderSide(color: noctuaText(context).withAlpha(138))),
             ),
             onSubmitted: (_) => _submitCustom(),
           ),
@@ -493,11 +494,11 @@ class _CityPickerDialogState extends State<_CityPickerDialog> {
             children: [
               Text('UTC offset',
                   style: TextStyle(
-                      color: Colors.white.withAlpha(128), fontSize: 14)),
+                      color: noctuaText(context).withAlpha(128), fontSize: 14)),
               const Spacer(),
               // − / + in 30-minute steps; hold boundaries at −12h / +14h
               IconButton(
-                icon: const Icon(Icons.remove, color: Colors.white54, size: 18),
+                icon: Icon(Icons.remove, color: noctuaText(context).withAlpha(138), size: 18),
                 onPressed: _offset_mins > -720
                     ? () => setState(() => _offset_mins -= 30)
                     : null,
@@ -506,11 +507,11 @@ class _CityPickerDialogState extends State<_CityPickerDialog> {
                 width: 80,
                 child: Text(label,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 15)),
+                    style: TextStyle(
+                        color: noctuaText(context), fontSize: 15)),
               ),
               IconButton(
-                icon: const Icon(Icons.add, color: Colors.white54, size: 18),
+                icon: Icon(Icons.add, color: noctuaText(context).withAlpha(138), size: 18),
                 onPressed: _offset_mins < 840
                     ? () => setState(() => _offset_mins += 30)
                     : null,
@@ -524,8 +525,8 @@ class _CityPickerDialogState extends State<_CityPickerDialog> {
               onPressed:
                   _city_ctrl.text.trim().isNotEmpty ? _submitCustom : null,
               style: TextButton.styleFrom(
-                foregroundColor: Colors.white70,
-                backgroundColor: Colors.white10,
+                foregroundColor: noctuaText(context).withAlpha(178),
+                backgroundColor: noctuaText(context).withAlpha(26),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10)),

@@ -170,6 +170,7 @@ class _NoctuaHomeState extends State<NoctuaHome> {
             slots:            cfg.screens,
             animation:        cfg.animation,
             animation_params: cfg.animation_params,
+            color_mode:       cfg.color_mode,
             screenBuilder:    _buildScreen,
           ),
         ),

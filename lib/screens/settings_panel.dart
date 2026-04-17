@@ -36,6 +36,7 @@ class _SettingsPanelState extends State<_SettingsPanel> {
   late String            _time_format;
   late String            _alarm_sound;
   late String            _timer_sound;
+  late String            _color_mode;
   List<RingtoneEntry>    _ringtones = [];
   bool                   _ringtones_loading = false;
 
@@ -63,6 +64,7 @@ class _SettingsPanelState extends State<_SettingsPanel> {
     _time_format = cfg.time_format;
     _alarm_sound = cfg.alarm_sound;
     _timer_sound = cfg.timer_sound;
+    _color_mode  = cfg.color_mode;
     _loadRingtones();
   }
 
@@ -140,6 +142,11 @@ class _SettingsPanelState extends State<_SettingsPanel> {
     widget.svc.setTimerSound(uri);
   }
 
+  void _setColorMode(String mode) {
+    setState(() => _color_mode = mode);
+    widget.svc.setColorMode(mode);
+  }
+
   /// Extract the hue from a scheme key — either a named preset or 'hue:NNN'.
   double _hueOf(String scheme) {
     if (scheme.startsWith('hue:')) {
@@ -198,6 +205,10 @@ class _SettingsPanelState extends State<_SettingsPanel> {
             _sectionLabel('Time Format'),
             const SizedBox(height: 10),
             _timeFormatToggle(),
+            const SizedBox(height: 20),
+            _sectionLabel('Colour Mode'),
+            const SizedBox(height: 10),
+            _colorModeToggle(),
             const SizedBox(height: 20),
             _sectionLabel('Alarm Sound'),
             const SizedBox(height: 10),
@@ -389,6 +400,54 @@ class _SettingsPanelState extends State<_SettingsPanel> {
                         ? Colors.white
                         : Colors.white54,
                   ),
+                ),
+              ),
+            ),
+        ],
+      );
+
+  Widget _colorModeToggle() => Wrap(
+        spacing: 8,
+        children: [
+          for (final (val, label, icon) in [
+            ('dark',  'Dark',  Icons.dark_mode_outlined),
+            ('light', 'Light', Icons.light_mode_outlined),
+          ])
+            GestureDetector(
+              onTap: () => _setColorMode(val),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                decoration: BoxDecoration(
+                  color: _color_mode == val
+                      ? Colors.white12
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _color_mode == val
+                        ? Colors.white38
+                        : Colors.white12,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon,
+                        size: 14,
+                        color: _color_mode == val
+                            ? Colors.white
+                            : Colors.white54),
+                    const SizedBox(width: 6),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: _color_mode == val
+                            ? Colors.white
+                            : Colors.white54,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

@@ -29,13 +29,13 @@ lib/
     timer/
       timer_screen.dart
       stopwatch_screen.dart
-    settings_panel.dart      # Bottom sheet: animation, params, font, per-column hue slider, time format toggle, sound pickers
+    settings_panel.dart      # Bottom sheet: animation, params, font, per-column hue slider, time format + colour mode toggle, sound pickers
   services/
     alarm_service.dart       # flutter_local_notifications v21 (Android); Dart Timer scheduler (Linux); dynamic channels per sound URI; requestPermissions() gated on areNotificationsEnabled/canScheduleExactNotifications
     ringtone_service.dart    # RingtoneEntry; list() dispatches to Android MethodChannel or Linux filesystem scan
     timer_persistence.dart   # TimerSession + TimerSnapshot; save on start/pause/reset/dismiss/expire; restore via deadline_ms on launch
   theme/
-    color_schemes.dart       # NoctuaColorScheme; schemeByName() handles 'blue'/'purple'/'green' + 'hue:NNN'
+    color_schemes.dart       # NoctuaColorScheme; NoctuaSchemeScope InheritedWidget; noctuaText(ctx) helper; schemeByName(name, {light}) + schemeFromHue(hue, {light})
     fonts.dart               # google_fonts wrappers; applyFont(); fontPreviewStyle()
   widgets/
     animated_background.dart # Ticker-based; monotonic _t; 'none' = _SolidPainter
@@ -58,4 +58,8 @@ lib/
 - Android notification channels are keyed by sound URI hash (`noctua_alarm_<base36>`); new sound → new channel
 - Linux alarm scheduling uses self-rescheduling Dart Timers (no notification daemon); `_linux_sound_proc` stores the `paplay` handle for cancellation; Linux snooze uses `_linux_snooze_timer` (same pattern)
 - `formatTime(h, m, fmt)` top-level helper in `noctua_config.dart` — used by Clock, NightClock, WorldClock, AlarmScreen
+- `NoctuaSchemeScope` InheritedWidget injected by `StackNav._scopedScreen(slot)` — wraps each screen with its resolved scheme; `noctuaText(ctx)` reads text colour (falls back to white in modal sheets)
+- `NoctuaConfig.color_mode` ('dark'|'light'); toggled via `ConfigService.setColorMode()` and the Colour Mode chip row in SettingsPanel
+- `stack_nav.dart`: `StackNav.color_mode` propagates to `_bg()` (background) and `_scopedScreen()` (text scope); `_light` getter `== 'light'`
+- Modal sheets (alarm_edit, alarm_dismiss, settings_panel) always use white text regardless of colour mode
 - Commit only when `flutter analyze` reports no issues

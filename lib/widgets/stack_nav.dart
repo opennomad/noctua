@@ -18,6 +18,7 @@ class StackNav extends StatefulWidget {
   final List<ScreenSlot> slots;
   final String animation;
   final AnimationParams animation_params;
+  final String color_mode;
   final StackNavController? controller;
   final Widget Function(String id) screenBuilder;
 
@@ -27,6 +28,7 @@ class StackNav extends StatefulWidget {
     required this.animation,
     required this.animation_params,
     required this.screenBuilder,
+    this.color_mode = 'dark',
     this.controller,
   });
 
@@ -304,11 +306,20 @@ class _StackNavState extends State<StackNav> with TickerProviderStateMixin {
 
   // ── build ─────────────────────────────────────────────────────────────────
 
+  bool get _light => widget.color_mode == 'light';
+
   Widget _bg(ScreenSlot slot) => AnimatedBackground(
-        scheme: schemeByName(slot.scheme),
+        scheme: schemeByName(slot.scheme, light: _light),
         animation: widget.animation,
         params: widget.animation_params,
         time: _anim_t,
+      );
+
+  /// Wraps the keyed screen with the correct [NoctuaSchemeScope] so all
+  /// descendant widgets can read [noctuaText(context)].
+  Widget _scopedScreen(ScreenSlot slot) => NoctuaSchemeScope(
+        scheme: schemeByName(slot.scheme, light: _light),
+        child: _keyedScreen(slot.id),
       );
 
   @override
@@ -322,9 +333,9 @@ class _StackNavState extends State<StackNav> with TickerProviderStateMixin {
     final slot_a  = active[_a_page.clamp(0, n - 1)];
     final slot_b  = active[_b_page.clamp(0, n - 1)];
 
-    final front_w  = _keyedScreen(f_slot.id);
+    final front_w  = _scopedScreen(f_slot);
     final target_w = _front_page != _target_page
-        ? _keyedScreen(tg_slot.id)
+        ? _scopedScreen(tg_slot)
         : null;
 
     return Listener(

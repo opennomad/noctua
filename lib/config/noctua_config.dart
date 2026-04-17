@@ -263,6 +263,9 @@ class NoctuaConfig {
   /// URI / path of the timer-done sound.  Empty = platform default.
   final String timer_sound;
 
+  /// Colour mode: 'dark' (default) or 'light'.
+  final String color_mode;
+
   const NoctuaConfig({
     required this.screens,
     required this.animation,
@@ -280,6 +283,7 @@ class NoctuaConfig {
     this.time_format   = '24h',
     this.alarm_sound   = '',
     this.timer_sound   = '',
+    this.color_mode    = 'dark',
   });
 
   static NoctuaConfig get defaults => const NoctuaConfig(
@@ -352,6 +356,7 @@ class NoctuaConfig {
       time_format:  json['time_format']  as String? ?? '24h',
       alarm_sound:  json['alarm_sound']  as String? ?? '',
       timer_sound:  json['timer_sound']  as String? ?? '',
+      color_mode:   json['color_mode']   as String? ?? 'dark',
     );
   }
 
@@ -368,6 +373,7 @@ class NoctuaConfig {
         'time_format':      time_format,
         'alarm_sound':      alarm_sound,
         'timer_sound':      timer_sound,
+        'color_mode':       color_mode,
       };
 
   NoctuaConfig copyWith({
@@ -383,6 +389,7 @@ class NoctuaConfig {
     String?            time_format,
     String?            alarm_sound,
     String?            timer_sound,
+    String?            color_mode,
   }) =>
       NoctuaConfig(
         screens:          screens          ?? this.screens,
@@ -397,5 +404,6 @@ class NoctuaConfig {
         time_format:      time_format      ?? this.time_format,
         alarm_sound:      alarm_sound      ?? this.alarm_sound,
         timer_sound:      timer_sound      ?? this.timer_sound,
+        color_mode:       color_mode       ?? this.color_mode,
       );
 }

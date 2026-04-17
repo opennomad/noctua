@@ -182,6 +182,12 @@ class ConfigService extends ChangeNotifier {
     await save();
   }
 
+  Future<void> setColorMode(String mode) async {
+    _config = _config.copyWith(color_mode: mode);
+    notifyListeners();
+    await save();
+  }
+
   Future<void> setFont(String font) async {
     _config = _config.copyWith(font: font);
     notifyListeners();

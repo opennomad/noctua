@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../theme/color_schemes.dart';
 import '../../config/config_service.dart';
 
 class ClockScreen extends StatefulWidget {
@@ -58,11 +59,11 @@ class _ClockScreenState extends State<ClockScreen> {
             children: [
               Text(
                 _time,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 64,
                   fontWeight: FontWeight.w100,
                   letterSpacing: 4,
-                  color: Colors.white,
+                  color: noctuaText(context),
                 ),
               ),
               const SizedBox(height: 12),
@@ -72,7 +73,7 @@ class _ClockScreenState extends State<ClockScreen> {
                   fontSize: 18,
                   fontWeight: FontWeight.w300,
                   letterSpacing: 2,
-                  color: Colors.white.withAlpha(178),
+                  color: noctuaText(context).withAlpha(178),
                 ),
               ),
             ],
