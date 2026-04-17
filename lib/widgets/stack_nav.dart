@@ -254,7 +254,7 @@ class _StackNavState extends State<StackNav> with TickerProviderStateMixin {
       child: Container(
         width: 40,
         height: 40,
-        margin: const EdgeInsets.symmetric(vertical: 5),
+        margin: const EdgeInsets.symmetric(horizontal: 5),
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: is_current ? ink.withAlpha(30) : Colors.transparent,
@@ -274,10 +274,10 @@ class _StackNavState extends State<StackNav> with TickerProviderStateMixin {
 
   Widget _pillsOverlay(List<ScreenSlot> active, {required bool light}) {
     return Positioned(
+      left: 0,
       right: 0,
-      top: 0,
       bottom: 0,
-      width: 56,
+      height: 56,
       child: SafeArea(
         child: Center(
           child: AnimatedBuilder(
@@ -287,7 +287,8 @@ class _StackNavState extends State<StackNav> with TickerProviderStateMixin {
               child: FadeTransition(opacity: _pills_fade, child: child),
             ),
             child: SingleChildScrollView(
-              child: Column(
+              scrollDirection: Axis.horizontal,
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   for (int i = 0; i < active.length; i++)
