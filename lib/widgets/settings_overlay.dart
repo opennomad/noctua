@@ -70,7 +70,7 @@ class _SettingsOverlayState extends State<SettingsOverlay>
         children: [
           widget.child,
           Positioned(
-            top: 0,
+            bottom: 0,
             left: 0,
             child: SafeArea(
               child: FadeTransition(
