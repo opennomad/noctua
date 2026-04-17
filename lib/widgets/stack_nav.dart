@@ -277,23 +277,25 @@ class _StackNavState extends State<StackNav> with TickerProviderStateMixin {
       left: 0,
       right: 0,
       bottom: 0,
-      height: 56,
       child: SafeArea(
-        child: Center(
-          child: AnimatedBuilder(
-            animation: _pills_ctrl,
-            builder: (context, child) => IgnorePointer(
-              ignoring: _pills_ctrl.value < 0.01,
-              child: FadeTransition(opacity: _pills_fade, child: child),
-            ),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (int i = 0; i < active.length; i++)
-                    _pillDot(i, active[i], light: light),
-                ],
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Center(
+            child: AnimatedBuilder(
+              animation: _pills_ctrl,
+              builder: (context, child) => IgnorePointer(
+                ignoring: _pills_ctrl.value < 0.01,
+                child: FadeTransition(opacity: _pills_fade, child: child),
+              ),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (int i = 0; i < active.length; i++)
+                      _pillDot(i, active[i], light: light),
+                  ],
+                ),
               ),
             ),
           ),
