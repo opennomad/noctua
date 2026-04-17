@@ -84,12 +84,10 @@ class _SettingsPanelState extends State<_SettingsPanel> {
   Future<void> _previewToggle(String uri) async {
     if (_previewing == uri) {
       await RingtoneService.stopPreview();
-      setState(() => _previewing = null);
+      if (mounted) setState(() => _previewing = null);
     } else {
       setState(() => _previewing = uri);
       await RingtoneService.preview(uri);
-      // Clear previewing state when playback ends (best-effort for Android).
-      if (mounted) setState(() => _previewing = null);
     }
   }
 
