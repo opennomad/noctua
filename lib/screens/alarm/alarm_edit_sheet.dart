@@ -126,19 +126,21 @@ class _AlarmEditSheetState extends State<_AlarmEditSheet> {
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _handle(),
-            const SizedBox(height: 16),
-            _timePicker(),
-            const SizedBox(height: 24),
-            _labelField(),
-            const SizedBox(height: 24),
-            _dayRow(),
-            const SizedBox(height: 32),
-            _actions(),
-          ],
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _handle(),
+              const SizedBox(height: 16),
+              _timePicker(),
+              const SizedBox(height: 24),
+              _labelField(),
+              const SizedBox(height: 24),
+              _dayRow(),
+              const SizedBox(height: 32),
+              _actions(),
+            ],
+          ),
         ),
       ),
     );
