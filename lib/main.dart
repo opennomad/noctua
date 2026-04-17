@@ -31,8 +31,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   tz_data.initializeTimeZones();
   if (Platform.isAndroid) {
-    final tz_name = await FlutterTimezone.getLocalTimezone();
-    tz.setLocalLocation(tz.getLocation(tz_name));
+    final tz_info = await FlutterTimezone.getLocalTimezone();
+    tz.setLocalLocation(tz.getLocation(tz_info.identifier));
   }
   final config_service = ConfigService();
   await config_service.load();
