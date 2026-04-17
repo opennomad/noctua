@@ -70,6 +70,9 @@ class _TimerScreenState extends State<TimerScreen>
     );
     widget.config_service.addListener(_onConfig);
     _restoreSession();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _touchPills();
+    });
   }
 
   @override
