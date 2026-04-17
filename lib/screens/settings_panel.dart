@@ -241,14 +241,27 @@ class _SettingsPanelState extends State<_SettingsPanel> {
 
   // ── sub-widgets ────────────────────────────────────────────────────────────
 
-  Widget _handle() => Center(
-        child: Container(
-          width: 40, height: 4,
-          decoration: BoxDecoration(
-            color: Colors.white24,
-            borderRadius: BorderRadius.circular(2),
+  Widget _handle() => Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: 40, height: 4,
+            decoration: BoxDecoration(
+              color: Colors.white24,
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
-        ),
+          Positioned(
+            right: -12,
+            child: IconButton(
+              icon: const Icon(Icons.close, size: 18, color: Colors.white38),
+              onPressed: () => Navigator.pop(context),
+              tooltip: 'Close',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            ),
+          ),
+        ],
       );
 
   Widget _sectionLabel(String text) => Padding(
