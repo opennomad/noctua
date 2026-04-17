@@ -286,12 +286,14 @@ class _StackNavState extends State<StackNav> with TickerProviderStateMixin {
               ignoring: _pills_ctrl.value < 0.01,
               child: FadeTransition(opacity: _pills_fade, child: child),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (int i = 0; i < active.length; i++)
-                  _pillDot(i, active[i], light: light),
-              ],
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (int i = 0; i < active.length; i++)
+                    _pillDot(i, active[i], light: light),
+                ],
+              ),
             ),
           ),
         ),
