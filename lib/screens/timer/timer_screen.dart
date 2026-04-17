@@ -136,6 +136,19 @@ class _TimerScreenState extends State<TimerScreen>
       _s_ctrl.jumpToItem(_input_s);
     });
 
+    // Ensure the active saved timer has a state even when it was idle and
+    // therefore not included in the snapshot list.
+    if (_active_id != _scratch && !_states.containsKey(_active_id)) {
+      final saved = widget.config_service.config.saved_timers
+          .firstWhere((t) => t.id == _active_id,
+              orElse: () => const SavedTimer(id: '', name: '', seconds: 0));
+      if (saved.id.isNotEmpty) {
+        setState(() => _states[_active_id] = _TState(Duration(seconds: saved.seconds)));
+      } else {
+        setState(() => _active_id = _scratch); // timer deleted between sessions
+      }
+    }
+
     if (has_running) _ensureTick();
   }
 
@@ -242,6 +255,7 @@ class _TimerScreenState extends State<TimerScreen>
     // tapping the active pill deselects back to scratch
     setState(
         () => _active_id = _active_id == saved.id ? _scratch : saved.id);
+    _saveSession(); // persist active_id so navigation away + back restores it
   }
 
   void _startOrResume() {

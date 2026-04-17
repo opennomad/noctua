@@ -39,6 +39,7 @@ class _SettingsPanelState extends State<_SettingsPanel> {
   late String            _color_mode;
   List<RingtoneEntry>    _ringtones = [];
   bool                   _ringtones_loading = false;
+  String?                _previewing;
 
   static const Map<String, String> _screen_names = {
     'clock':       'Clock',
@@ -72,6 +73,24 @@ class _SettingsPanelState extends State<_SettingsPanel> {
     setState(() => _ringtones_loading = true);
     final entries = await RingtoneService.list(type: 'alarm');
     if (mounted) setState(() { _ringtones = entries; _ringtones_loading = false; });
+  }
+
+  @override
+  void dispose() {
+    RingtoneService.stopPreview();
+    super.dispose();
+  }
+
+  Future<void> _previewToggle(String uri) async {
+    if (_previewing == uri) {
+      await RingtoneService.stopPreview();
+      setState(() => _previewing = null);
+    } else {
+      setState(() => _previewing = uri);
+      await RingtoneService.preview(uri);
+      // Clear previewing state when playback ends (best-effort for Android).
+      if (mounted) setState(() => _previewing = null);
+    }
   }
 
   // ── helpers ────────────────────────────────────────────────────────────────
@@ -337,25 +356,64 @@ class _SettingsPanelState extends State<_SettingsPanel> {
     // Ensure current value is in the list (it might be a URI from a previous
     // install that no longer exists on this device).
     final valid_uri = all.any((e) => e.uri == current_uri) ? current_uri : '';
+    final is_playing = _previewing == valid_uri;
 
-    return DropdownButton<String>(
-      value:           valid_uri,
-      dropdownColor:   const Color(0xFF1A1A2E),
-      style:           const TextStyle(fontSize: 13, color: Colors.white),
-      underline:       Container(height: 1, color: Colors.white12),
-      isExpanded:      true,
-      onChanged:       (v) { if (v != null) on_select(v); },
-      items: all
-          .map((e) => DropdownMenuItem<String>(
-                value: e.uri,
-                child: Text(e.title,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        color: e.uri == valid_uri
-                            ? Colors.white
-                            : Colors.white70)),
-              ))
-          .toList(),
+    return Row(
+      children: [
+        Expanded(
+          child: DropdownButton<String>(
+            value:           valid_uri,
+            dropdownColor:   const Color(0xFF1A1A2E),
+            style:           const TextStyle(fontSize: 13, color: Colors.white),
+            underline:       Container(height: 1, color: Colors.white12),
+            isExpanded:      true,
+            onChanged: (v) {
+              if (v != null) {
+                // Stop preview of old sound when selection changes.
+                if (_previewing != null) {
+                  RingtoneService.stopPreview();
+                  setState(() => _previewing = null);
+                }
+                on_select(v);
+              }
+            },
+            items: all
+                .map((e) => DropdownMenuItem<String>(
+                      value: e.uri,
+                      child: Text(e.title,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              color: e.uri == valid_uri
+                                  ? Colors.white
+                                  : Colors.white70)),
+                    ))
+                .toList(),
+          ),
+        ),
+        const SizedBox(width: 4),
+        GestureDetector(
+          onTap: () => _previewToggle(valid_uri),
+          child: Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: is_playing
+                  ? Colors.white.withAlpha(30)
+                  : Colors.transparent,
+              border: Border.all(
+                color: is_playing ? Colors.white38 : Colors.white24,
+                width: 1,
+              ),
+            ),
+            child: Icon(
+              is_playing ? Icons.stop_rounded : Icons.play_arrow_rounded,
+              size: 16,
+              color: is_playing ? Colors.white70 : Colors.white38,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
