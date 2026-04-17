@@ -485,7 +485,10 @@ class _TimerScreenState extends State<TimerScreen>
 
   Widget _picker() {
     const item_h = 52.0;
-    const picker_h = item_h * 5;
+    // 170 px is the approximate fixed overhead (SafeArea + gap + controls).
+    // Clamp to 3–5 visible items so the picker shrinks in landscape.
+    final screen_h = MediaQuery.of(context).size.height;
+    final picker_h = (((screen_h - 170) / item_h).floor().clamp(3, 5)) * item_h;
 
     Widget drum(
       FixedExtentScrollController ctrl,
