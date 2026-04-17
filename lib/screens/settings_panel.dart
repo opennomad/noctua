@@ -210,6 +210,8 @@ class _SettingsPanelState extends State<_SettingsPanel> {
             _sectionLabel('Colour Mode'),
             const SizedBox(height: 10),
             _colorModeToggle(),
+            const SizedBox(height: 16),
+            _colourSchemesButton(),
             const SizedBox(height: 20),
             _sectionLabel('Alarm Sound'),
             const SizedBox(height: 10),
@@ -225,10 +227,6 @@ class _SettingsPanelState extends State<_SettingsPanel> {
             const SizedBox(height: 10),
             _pillEdgeChips(),
             const SizedBox(height: 20),
-            _sectionLabel('Colour Schemes'),
-            const SizedBox(height: 10),
-            _colourSchemesButton(),
-            const SizedBox(height: 20),
             _sectionLabel('Screens'),
             const SizedBox(height: 6),
             _screenList(),
@@ -241,24 +239,28 @@ class _SettingsPanelState extends State<_SettingsPanel> {
 
   // ── sub-widgets ────────────────────────────────────────────────────────────
 
-  Widget _handle() => Stack(
-        alignment: Alignment.center,
+  Widget _handle() => Row(
         children: [
-          Container(
-            width: 40, height: 4,
-            decoration: BoxDecoration(
-              color: Colors.white24,
-              borderRadius: BorderRadius.circular(2),
+          const SizedBox(width: 44), // balance the close button
+          Expanded(
+            child: Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
             ),
           ),
-          Positioned(
-            right: -12,
+          SizedBox(
+            width: 44,
+            height: 44,
             child: IconButton(
-              icon: const Icon(Icons.close, size: 18, color: Colors.white38),
+              icon: const Icon(Icons.close, size: 20, color: Colors.white54),
               onPressed: () => Navigator.pop(context),
               tooltip: 'Close',
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
             ),
           ),
         ],
