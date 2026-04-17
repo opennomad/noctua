@@ -241,18 +241,7 @@ class _SettingsPanelState extends State<_SettingsPanel> {
 
   Widget _handle() => Row(
         children: [
-          const SizedBox(width: 44), // balance the close button
-          Expanded(
-            child: Center(
-              child: Container(
-                width: 40, height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-          ),
+          const Spacer(),
           SizedBox(
             width: 44,
             height: 44,
