@@ -360,7 +360,10 @@ class _CityPickerDialogState extends State<_CityPickerDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: const Color(0xFF1A1A2E),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: 24,
+        vertical: MediaQuery.of(context).size.height < 500 ? 16 : 48,
+      ),
       child: Column(
         children: [
           _dialogHeader(),
@@ -469,7 +472,7 @@ class _CityPickerDialogState extends State<_CityPickerDialog> {
         ? 'UTC$sign$abs_h'
         : 'UTC$sign$abs_h:${abs_m.toString().padLeft(2, '0')}';
 
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -518,7 +521,7 @@ class _CityPickerDialogState extends State<_CityPickerDialog> {
               ),
             ],
           ),
-          const Spacer(),
+          const SizedBox(height: 24),
           ListenableBuilder(
             listenable: _city_ctrl,
             builder: (ctx, child) => TextButton(
