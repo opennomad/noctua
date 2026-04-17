@@ -48,6 +48,7 @@ class _NightClockScreenState extends State<NightClockScreen> {
               fontWeight: FontWeight.w100,
               letterSpacing: 6,
               color: Colors.white.withAlpha(40),
+              fontFeatures: [FontFeature.tabularFigures()],
             ),
           ),
         ),

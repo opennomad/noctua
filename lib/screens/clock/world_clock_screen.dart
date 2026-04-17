@@ -228,7 +228,8 @@ class _ZoneRow extends StatelessWidget {
                   fontSize: 26,
                   fontWeight: FontWeight.w200,
                   letterSpacing: 2,
-                  color: noctuaText(context))),
+                  color: noctuaText(context),
+                  fontFeatures: [FontFeature.tabularFigures()])),
         ],
       ),
     );
@@ -286,7 +287,8 @@ class _EditZoneRow extends StatelessWidget {
                   fontSize: 22,
                   fontWeight: FontWeight.w200,
                   letterSpacing: 2,
-                  color: noctuaText(context))),
+                  color: noctuaText(context),
+                  fontFeatures: [FontFeature.tabularFigures()])),
           const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.remove_circle_outline,
@@ -456,7 +458,8 @@ class _CityPickerDialogState extends State<_CityPickerDialog> {
                         color: noctuaText(context).withAlpha(178),
                         fontSize: 16,
                         fontWeight: FontWeight.w200,
-                        letterSpacing: 1)),
+                        letterSpacing: 1,
+                        fontFeatures: [FontFeature.tabularFigures()])),
                 onTap: () => Navigator.pop(context, zone),
               );
             },

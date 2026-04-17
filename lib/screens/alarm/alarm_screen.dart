@@ -140,6 +140,7 @@ class _AlarmRow extends StatelessWidget {
                       fontWeight: FontWeight.w100,
                       letterSpacing: 2,
                       color: noctuaText(context).withAlpha(alarm.enabled ? 230 : 120),
+                      fontFeatures: [FontFeature.tabularFigures()],
                     ),
                   ),
                   const SizedBox(height: 2),

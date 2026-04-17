@@ -67,6 +67,7 @@ class _ClockScreenState extends State<ClockScreen> {
                       fontWeight: FontWeight.w100,
                       letterSpacing: 4,
                       color: noctuaText(context),
+                      fontFeatures: [FontFeature.tabularFigures()],
                     ),
                   ),
                   const SizedBox(height: 12),
