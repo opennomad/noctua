@@ -167,8 +167,8 @@ class _StackNavState extends State<StackNav> with TickerProviderStateMixin {
     _prepareTransition(target);
     _ctrl
         .animateTo(1.0,
-            duration: const Duration(milliseconds: 420),
-            curve: Curves.linear)
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeInOut)
         .then((_) => _commitTransition(target));
   }
 

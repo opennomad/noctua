@@ -100,10 +100,22 @@ class AlarmService {
   // ── lifecycle ─────────────────────────────────────────────────────────────
 
   /// Call once at startup, and again after the user changes sound settings.
-  static Future<void> init({String alarm_sound = '', String timer_sound = ''}) async {
-    if (!Platform.isAndroid) return;
+  static Future<void> init({
+    String alarm_sound = '',
+    String timer_sound = '',
+    List<AlarmConfig> alarms = const [],
+  }) async {
     _alarm_sound = alarm_sound;
     _timer_sound = timer_sound;
+    if (Platform.isLinux) {
+      // Restore Dart timers for every enabled alarm on startup.
+      _cancelAllLinux();
+      for (final alarm in alarms) {
+        if (alarm.enabled) _scheduleLinux(alarm);
+      }
+      return;
+    }
+    if (!Platform.isAndroid) return;
     if (_ready) {
       // Already initialised — just ensure channels for the current sounds.
       await _ensureAlarmChannel(_alarm_sound);

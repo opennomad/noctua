@@ -40,6 +40,7 @@ void main() async {
   await AlarmService.init(
     alarm_sound: config_service.config.alarm_sound,
     timer_sound: config_service.config.timer_sound,
+    alarms:      config_service.config.alarms,
   );
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
