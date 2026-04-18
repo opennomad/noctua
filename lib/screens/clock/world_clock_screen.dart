@@ -79,24 +79,18 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
   Widget _header() => Padding(
         padding: const EdgeInsets.fromLTRB(24, 20, 8, 8),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: Text(
-                'World Clock',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w300,
-                  letterSpacing: 4,
-                  color: noctuaText(context).withAlpha(128),
-                ),
+            Text(
+              'World Clock',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w300,
+                letterSpacing: 4,
+                color: noctuaText(context).withAlpha(128),
               ),
             ),
-            if (_editing)
-              IconButton(
-                icon: Icon(Icons.add, color: noctuaText(context).withAlpha(138), size: 20),
-                onPressed: _addZone,
-                tooltip: 'Add city',
-              ),
+            const SizedBox(width: 4),
             IconButton(
               icon: Icon(
                 _editing ? Icons.check : Icons.edit_outlined,
@@ -105,7 +99,19 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
               ),
               onPressed: () => setState(() => _editing = !_editing),
               tooltip: _editing ? 'Done' : 'Edit',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),
+            if (_editing) ...[
+              const SizedBox(width: 2),
+              IconButton(
+                icon: Icon(Icons.add, color: noctuaText(context).withAlpha(138), size: 20),
+                onPressed: _addZone,
+                tooltip: 'Add city',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              ),
+            ],
           ],
         ),
       );
