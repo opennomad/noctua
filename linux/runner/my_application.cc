@@ -1,6 +1,9 @@
 #include "my_application.h"
 
 #include <flutter_linux/flutter_linux.h>
+#include <gdk-pixbuf/gdk-pixbuf.h>
+#include <unistd.h>
+#include <limits.h>
 
 #include "flutter/generated_plugin_registrant.h"
 
@@ -21,6 +24,23 @@ static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
+
+  // Set window icon from the bundled PNG.
+  {
+    char exe_buf[PATH_MAX];
+    ssize_t len = readlink("/proc/self/exe", exe_buf, sizeof(exe_buf) - 1);
+    if (len > 0) {
+      exe_buf[len] = '\0';
+      g_autofree gchar* exe_dir = g_path_get_dirname(exe_buf);
+      g_autofree gchar* icon_path =
+          g_build_filename(exe_dir, "data", "app_icon.png", nullptr);
+      GdkPixbuf* icon = gdk_pixbuf_new_from_file(icon_path, nullptr);
+      if (icon) {
+        gtk_window_set_icon(window, icon);
+        g_object_unref(icon);
+      }
+    }
+  }
 
   gtk_window_set_decorated(window, FALSE);
 
