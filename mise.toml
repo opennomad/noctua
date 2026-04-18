@@ -14,3 +14,11 @@ run = "flutter run -d linux"
 [tasks.test]
 description = "run the app"
 run = "flutter test"
+
+[tasks.clear-adb]
+description = "run the app on android"
+run = '''
+adb kill-server
+adb start-server
+adb devices
+'''

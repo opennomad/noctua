@@ -24,8 +24,8 @@ lib/
       alarm_edit_sheet.dart  # Add/edit bottom sheet; showTimePicker; day-of-week toggles
       night_clock_screen.dart
     clock/
-      clock_screen.dart
-      world_clock_screen.dart  # Searchable city picker; custom UTC offset; reorderable list
+      clock_screen.dart          # Shows logo.svg watermark (opacity 12%) at bottom
+      world_clock_screen.dart  # Searchable city picker; custom UTC offset; reorderable list; edit/add buttons inline with label
     timer/
       timer_screen.dart
       stopwatch_screen.dart
@@ -41,7 +41,8 @@ lib/
     fonts.dart               # google_fonts wrappers; applyFont(); fontPreviewStyle()
   widgets/
     animated_background.dart # Ticker-based; monotonic _t; 'none' = _SolidPainter
-    settings_overlay.dart    # Listener (no gesture arena); fade-in gear icon; 3 s auto-hide
+    stack_nav.dart           # Swipe/programmatic nav; crossfade BG + FG; pills overlay at bottom edge (SafeArea + 12 px padding); light-aware pill ink colour
+    settings_overlay.dart    # Listener (no gesture arena); fade-in gear icon; 3 s auto-hide; top-right corner with 12 px padding; light-mode-aware icon colour
     animations/
       lava_lamp_painter.dart
       raindrops_painter.dart
@@ -68,4 +69,8 @@ lib/
 - Modal sheets (alarm_edit, alarm_dismiss, settings_panel) always use white text regardless of colour mode
 - `RingtoneService.preview(uri)` / `stopPreview()`: Android calls `preview`/`stopPreview` on `noctua/ringtones` MethodChannel (MainActivity holds `_current_ringtone: Ringtone?`); Linux spawns/kills `paplay` subprocess; `_SettingsPanelState` tracks `_previewing: String?`, calls `stopPreview()` in `dispose()`
 - Timer state bug fix: `_loadSaved()` calls `_saveSession()` after switching active_id; `_restoreSession()` reconstructs idle `_TState` for active_id if not found in snapshots
+- `FontFeature.tabularFigures()` on every numeric `Text` (clock, night clock, world clock, alarm list, timer, stopwatch) — prevents digit-width shifting with proportional fonts
+- `ScrollConfiguration(behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false))` suppresses the scrollbar widget entirely in bottom sheets (vs `ScrollbarTheme` which only styles it)
+- `flutter_svg` renders `assets/logo.svg`; declared in `pubspec.yaml` under `assets`
+- `flutter_timezone ^5.0.2`: `FlutterTimezone.getLocalTimezone()` returns `TimezoneInfo`; use `.identifier` property
 - Commit only when `flutter analyze` reports no issues
