@@ -170,8 +170,8 @@ class _SettingsPanelState extends State<_SettingsPanel> {
         24, 12, 24,
         24 + MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: ScrollbarTheme(
-        data: ScrollbarThemeData(thumbVisibility: WidgetStateProperty.all(false)),
+      child: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
         child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
