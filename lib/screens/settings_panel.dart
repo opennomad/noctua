@@ -170,7 +170,9 @@ class _SettingsPanelState extends State<_SettingsPanel> {
         24, 12, 24,
         24 + MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: SingleChildScrollView(
+      child: ScrollbarTheme(
+        data: ScrollbarThemeData(thumbVisibility: WidgetStateProperty.all(false)),
+        child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -234,6 +236,7 @@ class _SettingsPanelState extends State<_SettingsPanel> {
             const SizedBox(height: 4),
           ],
         ),
+      ),
       ),
     );
   }
