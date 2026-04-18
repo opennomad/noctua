@@ -76,7 +76,9 @@ class _SettingsOverlayState extends State<SettingsOverlay>
             top: 0,
             right: 0,
             child: SafeArea(
-              child: FadeTransition(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 12, right: 12),
+                child: FadeTransition(
                 opacity: _fade,
                 child: IconButton(
                   icon: const Icon(Icons.settings_outlined),
@@ -88,6 +90,7 @@ class _SettingsOverlayState extends State<SettingsOverlay>
               ),
             ),
           ),
+        ),
         ],
       ),
     );
