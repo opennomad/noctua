@@ -48,7 +48,7 @@ Search 115 cities or enter a custom UTC offset. Drag to reorder. Live DST-aware 
 
 ### Alarm
 ![Alarm screen placeholder](img/screen-alarm.png)
-One-shot and repeating alarms. Day-of-week toggles, labels, Dismiss and Snooze 10 min.
+One-shot and repeating alarms. Emoji shortcode labels (`:bell: wake up`, `:fire: gym`). Day-of-week toggles, Dismiss and Snooze 10 min.
 
 </div>
 
@@ -100,14 +100,14 @@ Android ringtones are enumerated directly from `RingtoneManager`. On Linux, any 
 <div class="feature">
 
 #### 24h / 12h Format
-One tap in settings. Applies everywhere — Clock, World Clock, and the Alarm list.
+One tap in settings. Applies everywhere — Clock, World Clock, the Alarm list, and the alarm time picker itself.
 
 </div>
 
 <div class="feature">
 
 #### Saved Timer Presets
-Give timers names with `:shortcode:` emoji syntax — `:tea:`, `:pomodoro:`, `:pizza:`. Edge pills (left, right, or bottom) auto-hide after 3 seconds.
+Name timers with emoji shortcodes — `:tea:`, `:pomodoro:`, `:pizza:`. As you type `:te`, a scrollable suggestion row appears so you can tap to complete without guessing names; works anywhere in the text, not just at the end. A new preset activates automatically on save so you can hit run immediately. Edge pills (left, right, or bottom) auto-hide after 3 seconds.
 
 </div>
 

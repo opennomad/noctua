@@ -140,5 +140,26 @@ void main() {
       expect(resolveShortcodes(':study:'),  '📚');
       expect(resolveShortcodes(':note:'),   '📝');
     });
+
+    // ── position-independent resolution (used by alarm labels & timer names) ──
+
+    test('shortcode embedded before existing text resolves', () {
+      expect(resolveShortcodes(':fire: morning run'), '🔥 morning run');
+    });
+
+    test('shortcode embedded after existing text resolves', () {
+      expect(resolveShortcodes('morning run :fire:'), 'morning run 🔥');
+    });
+
+    test('shortcode in the middle of existing text resolves', () {
+      expect(resolveShortcodes('wake :alarm: up'), 'wake ⏰ up');
+    });
+
+    test('multiple shortcodes mixed with plain text all resolve', () {
+      expect(
+        resolveShortcodes(':bell: stand up :coffee: break'),
+        '🔔 stand up ☕ break',
+      );
+    });
   });
 }
