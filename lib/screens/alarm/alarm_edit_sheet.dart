@@ -55,19 +55,23 @@ class _AlarmEditSheetState extends State<_AlarmEditSheet> {
   }
 
   Future<void> _pickTime() async {
+    final use_24h = widget.svc.config.time_format == '24h';
     final picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay(hour: _hour, minute: _minute),
-      builder: (ctx, child) => Theme(
-        data: Theme.of(ctx).copyWith(
-          colorScheme: const ColorScheme.dark(
-            primary: Colors.white70,
-            onPrimary: Colors.black,
-            surface: Color(0xFF1A1A2E),
-            onSurface: Colors.white,
+      builder: (ctx, child) => MediaQuery(
+        data: MediaQuery.of(ctx).copyWith(alwaysUse24HourFormat: use_24h),
+        child: Theme(
+          data: Theme.of(ctx).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: Colors.white70,
+              onPrimary: Colors.black,
+              surface: Color(0xFF1A1A2E),
+              onSurface: Colors.white,
+            ),
           ),
+          child: child!,
         ),
-        child: child!,
       ),
     );
     if (picked != null) {
@@ -159,7 +163,7 @@ class _AlarmEditSheetState extends State<_AlarmEditSheet> {
   Widget _timePicker() => GestureDetector(
         onTap: _pickTime,
         child: Text(
-          '${_hour.toString().padLeft(2, '0')}:${_minute.toString().padLeft(2, '0')}',
+          formatTime(_hour, _minute, widget.svc.config.time_format),
           style: const TextStyle(
             fontSize: 64,
             fontWeight: FontWeight.w100,
