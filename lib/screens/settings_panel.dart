@@ -334,6 +334,7 @@ class _SettingsPanelState extends State<_SettingsPanel> {
             const SizedBox(height: 6),
             _keyRow('→  Next', _kb.nav_next, (k) => _setKeyBindings(_kb.copyWith(nav_next: k))),
             _keyRow('←  Prev', _kb.nav_prev, (k) => _setKeyBindings(_kb.copyWith(nav_prev: k))),
+            _keyRow('✕  Quit', _kb.quit,     (k) => _setKeyBindings(_kb.copyWith(quit: k))),
           ],
         ],
       );
@@ -807,6 +808,33 @@ class _SettingsPanelState extends State<_SettingsPanel> {
 
 // ── key-capture dialog ────────────────────────────────────────────────────────
 
+// Returns true for bare modifier key presses so we can ignore them and wait
+// for the actual key the user wants to bind.
+bool _isModifierKey(LogicalKeyboardKey key) =>
+    key == LogicalKeyboardKey.control      ||
+    key == LogicalKeyboardKey.controlLeft  ||
+    key == LogicalKeyboardKey.controlRight ||
+    key == LogicalKeyboardKey.shift        ||
+    key == LogicalKeyboardKey.shiftLeft    ||
+    key == LogicalKeyboardKey.shiftRight   ||
+    key == LogicalKeyboardKey.alt          ||
+    key == LogicalKeyboardKey.altLeft      ||
+    key == LogicalKeyboardKey.altRight     ||
+    key == LogicalKeyboardKey.meta         ||
+    key == LogicalKeyboardKey.metaLeft     ||
+    key == LogicalKeyboardKey.metaRight;
+
+// Builds a modifier-aware label matching the format used in main.dart _onKey.
+String _buildKeyLabel(KeyEvent event) {
+  final parts = <String>[];
+  if (HardwareKeyboard.instance.isControlPressed) parts.add('Ctrl');
+  if (HardwareKeyboard.instance.isAltPressed)     parts.add('Alt');
+  if (HardwareKeyboard.instance.isShiftPressed)   parts.add('Shift');
+  final base = event.logicalKey.keyLabel;
+  if (base.isNotEmpty) parts.add(base);
+  return parts.join('+');
+}
+
 Future<String?> _captureKey(BuildContext context) => showDialog<String>(
       context: context,
       barrierColor: Colors.black54,
@@ -827,7 +855,9 @@ class _KeyCaptureDialog extends StatelessWidget {
           Navigator.pop(context);
           return KeyEventResult.handled;
         }
-        final label = event.logicalKey.keyLabel;
+        // Ignore bare modifier presses — wait for the actual key.
+        if (_isModifierKey(event.logicalKey)) return KeyEventResult.ignored;
+        final label = _buildKeyLabel(event);
         if (label.isNotEmpty) {
           Navigator.pop(context, label);
           return KeyEventResult.handled;

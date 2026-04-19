@@ -131,11 +131,35 @@ class _NoctuaHomeState extends State<NoctuaHome> {
     );
   }
 
+  // Builds a modifier-aware key label: e.g. 'Ctrl+w', 'Arrow Right'.
+  static String _buildKeyLabel(KeyEvent event) {
+    final parts = <String>[];
+    if (HardwareKeyboard.instance.isControlPressed) parts.add('Ctrl');
+    if (HardwareKeyboard.instance.isAltPressed)     parts.add('Alt');
+    if (HardwareKeyboard.instance.isShiftPressed)   parts.add('Shift');
+    final base = event.logicalKey.keyLabel;
+    if (base.isNotEmpty) parts.add(base);
+    return parts.join('+');
+  }
+
+  void _quit() {
+    if (Platform.isLinux) {
+      exit(0);
+    } else {
+      SystemNavigator.pop();
+    }
+  }
+
   bool _onKey(KeyEvent event) {
     if (event is! KeyDownEvent) return false;
 
-    final kb = widget.config.key_bindings;
+    final kb    = widget.config.key_bindings;
     if (!kb.enabled) return false;
+
+    final label = _buildKeyLabel(event);
+
+    // Quit is handled before any focus guard — it always works.
+    if (label == kb.quit) { _quit(); return true; }
 
     // Don't navigate while a modal/sheet/dialog is in front.
     if (_nav_key.currentState?.canPop() ?? false) return false;
@@ -145,7 +169,6 @@ class _NoctuaHomeState extends State<NoctuaHome> {
       return false;
     }
 
-    final label = event.logicalKey.keyLabel;
     if (label == kb.nav_next) { _stack_ctrl.goNext(); return true; }
     if (label == kb.nav_prev) { _stack_ctrl.goPrev(); return true; }
     return false;

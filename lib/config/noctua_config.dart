@@ -3,11 +3,13 @@ class KeyBindings {
   final bool   enabled;
   final String nav_next;
   final String nav_prev;
+  final String quit;
 
   const KeyBindings({
     this.enabled  = true,
     this.nav_next = 'Arrow Right',
     this.nav_prev = 'Arrow Left',
+    this.quit     = 'Ctrl+w',
   });
 
   factory KeyBindings.fromJson(Map<String, dynamic> j) => KeyBindings(
@@ -15,19 +17,22 @@ class KeyBindings {
         // fall back to old nav_right / nav_left keys when migrating config
         nav_next: j['nav_next'] as String? ?? j['nav_right'] as String? ?? 'Arrow Right',
         nav_prev: j['nav_prev'] as String? ?? j['nav_left']  as String? ?? 'Arrow Left',
+        quit:     j['quit']     as String? ?? 'Ctrl+w',
       );
 
   Map<String, dynamic> toJson() => {
         'enabled':  enabled,
         'nav_next': nav_next,
         'nav_prev': nav_prev,
+        'quit':     quit,
       };
 
-  KeyBindings copyWith({bool? enabled, String? nav_next, String? nav_prev}) =>
+  KeyBindings copyWith({bool? enabled, String? nav_next, String? nav_prev, String? quit}) =>
       KeyBindings(
         enabled:  enabled  ?? this.enabled,
         nav_next: nav_next ?? this.nav_next,
         nav_prev: nav_prev ?? this.nav_prev,
+        quit:     quit     ?? this.quit,
       );
 }
 
