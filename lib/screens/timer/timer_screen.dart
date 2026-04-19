@@ -328,8 +328,9 @@ class _TimerScreenState extends State<TimerScreen>
   Future<void> _addSaved() async {
     final result = await _showTimerSheet(context);
     if (result != null) {
-      await widget.config_service.addSavedTimer(result);
-      _loadSaved(result); // activate the new timer immediately
+      // addSavedTimer assigns the real id — use the returned timer for activation
+      final saved = await widget.config_service.addSavedTimer(result);
+      _loadSaved(saved);
     }
   }
 

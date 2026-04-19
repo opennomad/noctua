@@ -94,13 +94,14 @@ class ConfigService extends ChangeNotifier {
     return '${max_id + 1}';
   }
 
-  Future<void> addSavedTimer(SavedTimer timer) async {
+  Future<SavedTimer> addSavedTimer(SavedTimer timer) async {
     final with_id = SavedTimer(
         id: _next_timer_id(), name: timer.name, seconds: timer.seconds);
     _config = _config.copyWith(
         saved_timers: [..._config.saved_timers, with_id]);
     notifyListeners();
     await save();
+    return with_id;
   }
 
   Future<void> updateSavedTimer(SavedTimer timer) async {
