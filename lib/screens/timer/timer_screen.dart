@@ -795,6 +795,10 @@ class _SavedTimerSheetState extends State<_SavedTimerSheet> {
   late TextEditingController _name_ctrl;
   late FixedExtentScrollController _h_ctrl, _m_ctrl, _s_ctrl;
   int _h = 0, _m = 5, _s = 0;
+  List<MapEntry<String, String>> _suggestions = const [];
+
+  // Regex: open colon + 2+ word chars at end of string (no closing colon yet).
+  static final _partial_re = RegExp(r':([a-zA-Z0-9_]{2,})$');
 
   bool get _is_edit => widget.timer != null;
 
@@ -803,6 +807,7 @@ class _SavedTimerSheetState extends State<_SavedTimerSheet> {
     super.initState();
     final t = widget.timer;
     _name_ctrl = TextEditingController(text: t?.name ?? '');
+    _name_ctrl.addListener(_onNameChanged);
     if (t != null) {
       _h = t.seconds ~/ 3600;
       _m = (t.seconds % 3600) ~/ 60;
@@ -815,11 +820,39 @@ class _SavedTimerSheetState extends State<_SavedTimerSheet> {
 
   @override
   void dispose() {
+    _name_ctrl.removeListener(_onNameChanged);
     _name_ctrl.dispose();
     _h_ctrl.dispose();
     _m_ctrl.dispose();
     _s_ctrl.dispose();
     super.dispose();
+  }
+
+  void _onNameChanged() {
+    final match = _partial_re.firstMatch(_name_ctrl.text);
+    if (match == null) {
+      if (_suggestions.isNotEmpty) setState(() => _suggestions = const []);
+      return;
+    }
+    final partial = match.group(1)!.toLowerCase();
+    final results = shortcodes.entries
+        .where((e) => e.key.startsWith(partial))
+        .take(8)
+        .toList();
+    setState(() => _suggestions = results);
+  }
+
+  void _applySuggestion(String name) {
+    final text  = _name_ctrl.text;
+    final match = _partial_re.firstMatch(text);
+    if (match == null) return;
+    // Replace `:partial` with `:name: ` (trailing space keeps cursor outside)
+    final new_text = '${text.substring(0, match.start)}:$name: ';
+    _name_ctrl.value = TextEditingValue(
+      text:      new_text,
+      selection: TextSelection.collapsed(offset: new_text.length),
+    );
+    setState(() => _suggestions = const []);
   }
 
   void _save() {
@@ -857,7 +890,7 @@ class _SavedTimerSheetState extends State<_SavedTimerSheet> {
               const SizedBox(height: 16),
               _nameField(),
               const SizedBox(height: 4),
-              _shortcodeHint(),
+              _hintOrSuggestions(),
               const SizedBox(height: 24),
               _timePicker(),
               const SizedBox(height: 32),
@@ -894,13 +927,53 @@ class _SavedTimerSheetState extends State<_SavedTimerSheet> {
         ),
       );
 
-  Widget _shortcodeHint() => Text(
-        ':tea:  :coffee:  :pomodoro:  :workout:  :todo:  :focus:  …',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 11,
-          color: noctuaText(context).withAlpha(60),
-          letterSpacing: 0.3,
+  // Shows autocomplete chips when typing a partial shortcode, otherwise the
+  // static hint.  Fixed height so the layout doesn't jump between states.
+  Widget _hintOrSuggestions() {
+    if (_suggestions.isEmpty) return _shortcodeHint();
+    return SizedBox(
+      height: 36,
+      child: ListView.separated(
+        scrollDirection:    Axis.horizontal,
+        padding:            const EdgeInsets.symmetric(horizontal: 4),
+        itemCount:          _suggestions.length,
+        separatorBuilder:   (_, sep) => const SizedBox(width: 8),
+        itemBuilder: (_, i) {
+          final e = _suggestions[i];
+          return GestureDetector(
+            onTap: () => _applySuggestion(e.key),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color:        noctuaText(context).withAlpha(25),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                '${e.value} ${e.key}',
+                style: TextStyle(
+                  color:    noctuaText(context),
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _shortcodeHint() => SizedBox(
+        height: 36,
+        child: Center(
+          child: Text(
+            ':tea:  :coffee:  :pomodoro:  :workout:  :todo:  :focus:  …',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize:    11,
+              color:       noctuaText(context).withAlpha(60),
+              letterSpacing: 0.3,
+            ),
+          ),
         ),
       );
 

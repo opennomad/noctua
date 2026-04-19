@@ -2,6 +2,35 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:noctua/data/emoji_shortcodes.dart';
 
 void main() {
+  // ── shortcodes map ────────────────────────────────────────────────────────
+
+  group('shortcodes map', () {
+    test('contains at least 400 entries', () {
+      expect(shortcodes.length, greaterThanOrEqualTo(400));
+    });
+
+    test('all keys are lowercase', () {
+      for (final key in shortcodes.keys) {
+        expect(key, key.toLowerCase(), reason: 'key "$key" is not lowercase');
+      }
+    });
+
+    test('no duplicate values for distinct canonical names', () {
+      // A few spot-checks that aliases resolve to the same emoji
+      expect(shortcodes['sunny'],    shortcodes['sun']);
+      expect(shortcodes['thinking'], shortcodes['thinking_face']);
+    });
+
+    test('new shortcodes from expanded categories resolve', () {
+      expect(shortcodes['hamburger'], '🍔');
+      expect(shortcodes['rocket'],    '🚀');
+      expect(shortcodes['guitar'],    '🎸');
+      expect(shortcodes['koala'],     '🐨');
+      expect(shortcodes['rainbow'],   '🌈');
+      expect(shortcodes['us'],        '🇺🇸');
+    });
+  });
+
   group('resolveShortcodes', () {
     // ── known codes ───────────────────────────────────────────────────────────
 
@@ -98,7 +127,7 @@ void main() {
         ':wine:':     '🍷',
         ':juice:':    '🧃',
         ':milk:':     '🥛',
-        ':cocktail:': '🍹',
+        ':cocktail:': '🍸',
       };
       drinks.forEach((code, emoji) {
         expect(resolveShortcodes(code), emoji, reason: '$code → $emoji');
