@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../config/config_service.dart';
+import '../../data/emoji_shortcodes.dart';
 import '../../services/alarm_service.dart';
 
 /// Opens the add/edit bottom sheet.  Pass [alarm] to edit an existing one;
@@ -34,6 +35,10 @@ class _AlarmEditSheetState extends State<_AlarmEditSheet> {
   late String        _label;
   late List<int>     _repeat_days;
   late TextEditingController _label_ctrl;
+  List<MapEntry<String, String>> _suggestions = const [];
+
+  // Regex: open colon + 2+ word chars at end of string (no closing colon yet).
+  static final _partial_re = RegExp(r':([a-zA-Z0-9_]{2,})$');
 
   bool get _is_edit => widget.alarm != null;
 
@@ -46,12 +51,40 @@ class _AlarmEditSheetState extends State<_AlarmEditSheet> {
     _label       = a?.label  ?? '';
     _repeat_days = List<int>.from(a?.repeat_days ?? []);
     _label_ctrl  = TextEditingController(text: _label);
+    _label_ctrl.addListener(_onLabelChanged);
   }
 
   @override
   void dispose() {
+    _label_ctrl.removeListener(_onLabelChanged);
     _label_ctrl.dispose();
     super.dispose();
+  }
+
+  void _onLabelChanged() {
+    final match = _partial_re.firstMatch(_label_ctrl.text);
+    if (match == null) {
+      if (_suggestions.isNotEmpty) setState(() => _suggestions = const []);
+      return;
+    }
+    final partial = match.group(1)!.toLowerCase();
+    final results = shortcodes.entries
+        .where((e) => e.key.startsWith(partial))
+        .take(8)
+        .toList();
+    setState(() => _suggestions = results);
+  }
+
+  void _applySuggestion(String name) {
+    final text  = _label_ctrl.text;
+    final match = _partial_re.firstMatch(text);
+    if (match == null) return;
+    final new_text = '${text.substring(0, match.start)}:$name: ';
+    _label_ctrl.value = TextEditingValue(
+      text:      new_text,
+      selection: TextSelection.collapsed(offset: new_text.length),
+    );
+    setState(() => _suggestions = const []);
   }
 
   Future<void> _pickTime() async {
@@ -91,11 +124,12 @@ class _AlarmEditSheetState extends State<_AlarmEditSheet> {
   }
 
   Future<void> _save() async {
+    final raw   = _label_ctrl.text.trim();
     final alarm = AlarmConfig(
       id:          widget.alarm?.id ?? '0', // ConfigService assigns real ID on add
       hour:        _hour,
       minute:      _minute,
-      label:       _label_ctrl.text.trim(),
+      label:       resolveShortcodes(raw),
       enabled:     widget.alarm?.enabled ?? true,
       repeat_days: List<int>.from(_repeat_days),
     );
@@ -139,7 +173,9 @@ class _AlarmEditSheetState extends State<_AlarmEditSheet> {
               _timePicker(),
               const SizedBox(height: 24),
               _labelField(),
-              const SizedBox(height: 24),
+              const SizedBox(height: 4),
+              _hintOrSuggestions(),
+              const SizedBox(height: 20),
               _dayRow(),
               const SizedBox(height: 32),
               _actions(),
@@ -183,6 +219,51 @@ class _AlarmEditSheetState extends State<_AlarmEditSheet> {
               borderSide: BorderSide(color: Colors.white24)),
           focusedBorder: UnderlineInputBorder(
               borderSide: BorderSide(color: Colors.white54)),
+        ),
+      );
+
+  Widget _hintOrSuggestions() {
+    if (_suggestions.isEmpty) return _shortcodeHint();
+    return SizedBox(
+      height: 36,
+      child: ListView.separated(
+        scrollDirection:  Axis.horizontal,
+        padding:          const EdgeInsets.symmetric(horizontal: 4),
+        itemCount:        _suggestions.length,
+        separatorBuilder: (_, sep) => const SizedBox(width: 8),
+        itemBuilder: (_, i) {
+          final e = _suggestions[i];
+          return GestureDetector(
+            onTap: () => _applySuggestion(e.key),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color:        Colors.white.withAlpha(25),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                '${e.value} ${e.key}',
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _shortcodeHint() => const SizedBox(
+        height: 36,
+        child: Center(
+          child: Text(
+            ':alarm:  :bell:  :star:  :fire:  :todo:  :coffee:  …',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize:     11,
+              color:        Colors.white38,
+              letterSpacing: 0.3,
+            ),
+          ),
         ),
       );
 
