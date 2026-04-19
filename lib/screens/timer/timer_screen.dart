@@ -831,7 +831,10 @@ class _SavedTimerSheetState extends State<_SavedTimerSheet> {
   }
 
   void _onNameChanged() {
-    final match = _partial_re.firstMatch(_name_ctrl.text);
+    final cursor = _name_ctrl.selection.baseOffset;
+    // Slice to cursor so the $ anchor finds a partial shortcode anywhere.
+    final before = cursor >= 0 ? _name_ctrl.text.substring(0, cursor) : '';
+    final match  = _partial_re.firstMatch(before);
     if (match == null) {
       if (_suggestions.isNotEmpty) setState(() => _suggestions = const []);
       return;
@@ -845,14 +848,18 @@ class _SavedTimerSheetState extends State<_SavedTimerSheet> {
   }
 
   void _applySuggestion(String name) {
-    final text  = _name_ctrl.text;
-    final match = _partial_re.firstMatch(text);
+    final text   = _name_ctrl.text;
+    final cursor = _name_ctrl.selection.baseOffset;
+    if (cursor < 0) return;
+    final before = text.substring(0, cursor);
+    final match  = _partial_re.firstMatch(before);
     if (match == null) return;
-    // Replace `:partial` with `:name: ` (trailing space keeps cursor outside)
-    final new_text = '${text.substring(0, match.start)}:$name: ';
+    // Stitch: text before the ':partial' + ':name: ' + text after cursor
+    final new_text   = '${before.substring(0, match.start)}:$name: ${text.substring(cursor)}';
+    final new_cursor = match.start + name.length + 3; // len(':') + name + len(': ')
     _name_ctrl.value = TextEditingValue(
       text:      new_text,
-      selection: TextSelection.collapsed(offset: new_text.length),
+      selection: TextSelection.collapsed(offset: new_cursor),
     );
     setState(() => _suggestions = const []);
   }
