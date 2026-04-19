@@ -197,6 +197,18 @@ class ConfigService extends ChangeNotifier {
     await save();
   }
 
+  Future<void> setShowLocalTime(bool value) async {
+    _config = _config.copyWith(show_local_time: value);
+    notifyListeners();
+    await save();
+  }
+
+  Future<void> setNightMode(bool value) async {
+    _config = _config.copyWith(night_mode: value);
+    notifyListeners();
+    await save();
+  }
+
   Future<void> setFont(String font) async {
     _config = _config.copyWith(font: font);
     notifyListeners();

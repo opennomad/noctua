@@ -13,24 +13,44 @@ class WorldClockScreen extends StatefulWidget {
   State<WorldClockScreen> createState() => _WorldClockScreenState();
 }
 
-class _WorldClockScreenState extends State<WorldClockScreen> {
+class _WorldClockScreenState extends State<WorldClockScreen>
+    with SingleTickerProviderStateMixin {
+  static const _hide_delay = Duration(seconds: 3);
+  static const _fade_ms    = Duration(milliseconds: 300);
+
+  late AnimationController _fade_ctrl;
+  late Animation<double>   _fade;
+  Timer? _fade_timer;
+
   late DateTime _utc_now;
-  late Timer _timer;
+  late Timer _clock_timer;
   bool _editing = false;
 
   @override
   void initState() {
     super.initState();
+    _fade_ctrl = AnimationController(vsync: this, duration: _fade_ms);
+    _fade = CurvedAnimation(parent: _fade_ctrl, curve: Curves.easeInOut);
     _utc_now = DateTime.now().toUtc();
-    _timer = Timer.periodic(const Duration(seconds: 30), (_) {
+    _clock_timer = Timer.periodic(const Duration(seconds: 30), (_) {
       setState(() => _utc_now = DateTime.now().toUtc());
     });
   }
 
   @override
   void dispose() {
-    _timer.cancel();
+    _fade_timer?.cancel();
+    _fade_ctrl.dispose();
+    _clock_timer.cancel();
     super.dispose();
+  }
+
+  void _onTouch(PointerDownEvent _) {
+    _fade_ctrl.forward();
+    _fade_timer?.cancel();
+    _fade_timer = Timer(_hide_delay, () {
+      if (mounted) _fade_ctrl.reverse();
+    });
   }
 
   List<ZoneConfig> get _zones =>
@@ -61,15 +81,19 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: Column(
-            children: [
-              _header(),
-              Expanded(child: _editing ? _editList() : _readList()),
-            ],
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: _onTouch,
+      child: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Column(
+              children: [
+                _header(),
+                Expanded(child: _editing ? _editList() : _readList()),
+              ],
+            ),
           ),
         ),
       ),
@@ -91,25 +115,31 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
               ),
             ),
             const SizedBox(width: 4),
-            IconButton(
-              icon: Icon(
-                _editing ? Icons.check : Icons.edit_outlined,
-                color: noctuaText(context).withAlpha(138),
-                size: 18,
+            FadeTransition(
+              opacity: _fade,
+              child: IconButton(
+                icon: Icon(
+                  _editing ? Icons.check : Icons.edit_outlined,
+                  color: noctuaText(context).withAlpha(138),
+                  size: 18,
+                ),
+                onPressed: () => setState(() => _editing = !_editing),
+                tooltip: _editing ? 'Done' : 'Edit',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
               ),
-              onPressed: () => setState(() => _editing = !_editing),
-              tooltip: _editing ? 'Done' : 'Edit',
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),
             if (_editing) ...[
               const SizedBox(width: 2),
-              IconButton(
-                icon: Icon(Icons.add, color: noctuaText(context).withAlpha(138), size: 20),
-                onPressed: _addZone,
-                tooltip: 'Add city',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              FadeTransition(
+                opacity: _fade,
+                child: IconButton(
+                  icon: Icon(Icons.add, color: noctuaText(context).withAlpha(138), size: 18),
+                  onPressed: _addZone,
+                  tooltip: 'Add city',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                ),
               ),
             ],
           ],
@@ -119,12 +149,20 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
   Widget _readList() => ListenableBuilder(
         listenable: widget.config_service,
         builder: (ctx, child) {
-          final fmt = widget.config_service.config.time_format;
+          final cfg            = widget.config_service.config;
+          final fmt            = cfg.time_format;
+          final show_local     = cfg.show_local_time;
+          final extra          = show_local ? 1 : 0;
           return ListView.builder(
             padding: const EdgeInsets.only(bottom: 16),
-            itemCount: _zones.length,
-            itemBuilder: (ctx, i) =>
-                _ZoneRow(zone: _zones[i], utc_now: _utc_now, time_format: fmt),
+            itemCount: _zones.length + extra,
+            itemBuilder: (ctx, i) {
+              if (show_local && i == 0) {
+                return _LocalRow(utc_now: _utc_now, time_format: fmt);
+              }
+              return _ZoneRow(
+                  zone: _zones[i - extra], utc_now: _utc_now, time_format: fmt);
+            },
           );
         },
       );
@@ -194,6 +232,66 @@ String _offsetLabel(ZoneConfig zone, DateTime utc_now) {
     return _format_offset(local.timeZoneOffset.inMinutes);
   } catch (_) {
     return zone.tz_id;
+  }
+}
+
+// ── local time row ────────────────────────────────────────────────────────────
+
+class _LocalRow extends StatelessWidget {
+  final DateTime utc_now;
+  final String time_format;
+
+  const _LocalRow({required this.utc_now, required this.time_format});
+
+  @override
+  Widget build(BuildContext context) {
+    final now    = DateTime.now();
+    final offset = now.timeZoneOffset;
+    final sign   = offset.isNegative ? '-' : '+';
+    final abs_h  = offset.inHours.abs();
+    final abs_m  = offset.inMinutes.abs() % 60;
+    final offset_label = abs_m == 0
+        ? 'UTC$sign$abs_h'
+        : 'UTC$sign$abs_h:${abs_m.toString().padLeft(2, '0')}';
+    final time_str = formatTime(now.hour, now.minute, time_format);
+    final ink = noctuaText(context);
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: ink.withAlpha(18),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Local',
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w400,
+                        color: ink)),
+                Text(offset_label,
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: ink.withAlpha(102),
+                        letterSpacing: 1)),
+              ],
+            ),
+          ),
+          Text(time_str,
+              style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w200,
+                  letterSpacing: 2,
+                  color: ink,
+                  fontFeatures: [FontFeature.tabularFigures()])),
+        ],
+      ),
+    );
   }
 }
 

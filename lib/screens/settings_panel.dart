@@ -38,6 +38,7 @@ class _SettingsPanelState extends State<_SettingsPanel> {
   late String            _alarm_sound;
   late String            _timer_sound;
   late String            _color_mode;
+  late bool              _show_local_time;
   List<RingtoneEntry>    _ringtones = [];
   bool                   _ringtones_loading = false;
   String?                _previewing;
@@ -46,7 +47,6 @@ class _SettingsPanelState extends State<_SettingsPanel> {
     'clock':       'Clock',
     'world_clock': 'World Clock',
     'alarm':       'Alarm',
-    'night_clock': 'Night Clock',
     'timer':       'Timer',
     'stopwatch':   'Stopwatch',
   };
@@ -66,7 +66,8 @@ class _SettingsPanelState extends State<_SettingsPanel> {
     _time_format = cfg.time_format;
     _alarm_sound = cfg.alarm_sound;
     _timer_sound = cfg.timer_sound;
-    _color_mode  = cfg.color_mode;
+    _color_mode      = cfg.color_mode;
+    _show_local_time = cfg.show_local_time;
     _loadRingtones();
   }
 
@@ -157,6 +158,11 @@ class _SettingsPanelState extends State<_SettingsPanel> {
     widget.svc.setColorMode(mode);
   }
 
+  void _setShowLocalTime(bool value) {
+    setState(() => _show_local_time = value);
+    widget.svc.setShowLocalTime(value);
+  }
+
   // ── build ──────────────────────────────────────────────────────────────────
 
   @override
@@ -209,6 +215,10 @@ class _SettingsPanelState extends State<_SettingsPanel> {
             _sectionLabel('Time Format'),
             const SizedBox(height: 10),
             _timeFormatToggle(),
+            const SizedBox(height: 20),
+            _sectionLabel('World Clock'),
+            const SizedBox(height: 10),
+            _localTimeToggle(),
             const SizedBox(height: 20),
             _sectionLabel('Colour Mode'),
             const SizedBox(height: 10),
@@ -460,6 +470,40 @@ class _SettingsPanelState extends State<_SettingsPanel> {
                   style: TextStyle(
                     fontSize: 13,
                     color: _time_format == val
+                        ? Colors.white
+                        : Colors.white54,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      );
+
+  Widget _localTimeToggle() => Wrap(
+        spacing: 8,
+        children: [
+          for (final (val, label) in [(true, 'Show local time'), (false, 'Hide')])
+            GestureDetector(
+              onTap: () => _setShowLocalTime(val),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                decoration: BoxDecoration(
+                  color: _show_local_time == val
+                      ? Colors.white12
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _show_local_time == val
+                        ? Colors.white38
+                        : Colors.white12,
+                  ),
+                ),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: _show_local_time == val
                         ? Colors.white
                         : Colors.white54,
                   ),

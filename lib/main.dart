@@ -12,7 +12,6 @@ import 'screens/alarm/alarm_dismiss_sheet.dart';
 import 'screens/clock/clock_screen.dart';
 import 'screens/clock/world_clock_screen.dart';
 import 'screens/alarm/alarm_screen.dart';
-import 'screens/alarm/night_clock_screen.dart';
 import 'screens/timer/timer_screen.dart';
 import 'screens/timer/stopwatch_screen.dart';
 import 'theme/fonts.dart';
@@ -156,7 +155,6 @@ class _NoctuaHomeState extends State<NoctuaHome> {
     'clock'       => ClockScreen(config_service: widget.config_service),
     'world_clock' => WorldClockScreen(config_service: widget.config_service),
     'alarm'       => AlarmScreen(config_service: widget.config_service),
-    'night_clock' => NightClockScreen(config_service: widget.config_service),
     'timer'       => TimerScreen(config_service: widget.config_service),
     'stopwatch'   => const StopwatchScreen(),
     _             => const SizedBox.shrink(),

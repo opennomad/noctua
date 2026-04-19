@@ -33,7 +33,7 @@ class KeyBindings {
 
 /// One entry in the navigation stack.
 class ScreenSlot {
-  /// One of: 'clock', 'world_clock', 'alarm', 'night_clock', 'timer', 'stopwatch'.
+  /// One of: 'clock', 'world_clock', 'alarm', 'timer', 'stopwatch'.
   final String id;
 
   /// Colour-scheme name used in dark mode: 'blue' | 'purple' | 'green' | 'hue:NNN'.
@@ -277,6 +277,12 @@ class NoctuaConfig {
   /// Colour mode: 'dark' (default) or 'light'.
   final String color_mode;
 
+  /// Whether the world clock screen shows the device's local time at the top.
+  final bool show_local_time;
+
+  /// Whether the clock screen is in night mode (dim overlay, no seconds/date).
+  final bool night_mode;
+
   const NoctuaConfig({
     required this.screens,
     required this.animation,
@@ -292,9 +298,11 @@ class NoctuaConfig {
     this.timer_pill_edge = 'left',
     this.key_bindings  = const KeyBindings(),
     this.time_format   = '24h',
-    this.alarm_sound   = '',
-    this.timer_sound   = '',
-    this.color_mode    = 'dark',
+    this.alarm_sound      = '',
+    this.timer_sound      = '',
+    this.color_mode       = 'dark',
+    this.show_local_time  = false,
+    this.night_mode       = false,
   });
 
   static NoctuaConfig get defaults => const NoctuaConfig(
@@ -302,7 +310,6 @@ class NoctuaConfig {
           ScreenSlot(id: 'clock',       scheme: 'blue'),     // 215° blue
           ScreenSlot(id: 'world_clock', scheme: 'hue:190'),  // teal
           ScreenSlot(id: 'alarm',       scheme: 'purple'),   // 275° purple
-          ScreenSlot(id: 'night_clock', scheme: 'hue:5'),    // deep red
           ScreenSlot(id: 'timer',       scheme: 'green'),    // 130° green
           ScreenSlot(id: 'stopwatch',   scheme: 'hue:45'),   // amber
         ],
@@ -315,9 +322,10 @@ class NoctuaConfig {
     List<ScreenSlot> parsed_screens;
 
     if (json['screens'] is List) {
-      // Current format
+      // Current format — filter out removed 'night_clock' screen.
       parsed_screens = (json['screens'] as List)
           .map((s) => ScreenSlot.fromJson(s as Map<String, dynamic>))
+          .where((s) => s.id != 'night_clock')
           .toList();
     } else if (json['columns'] is List) {
       // Migrate from old 3-column format
@@ -329,7 +337,6 @@ class NoctuaConfig {
         ScreenSlot(id: 'clock',       scheme: schemeOf(0)),
         ScreenSlot(id: 'world_clock', scheme: schemeOf(0)),
         ScreenSlot(id: 'alarm',       scheme: schemeOf(1)),
-        ScreenSlot(id: 'night_clock', scheme: schemeOf(1)),
         ScreenSlot(id: 'timer',       scheme: schemeOf(2)),
         ScreenSlot(id: 'stopwatch',   scheme: schemeOf(2)),
       ];
@@ -364,10 +371,12 @@ class NoctuaConfig {
       key_bindings: json['key_bindings'] is Map
           ? KeyBindings.fromJson(json['key_bindings'] as Map<String, dynamic>)
           : const KeyBindings(),
-      time_format:  json['time_format']  as String? ?? '24h',
-      alarm_sound:  json['alarm_sound']  as String? ?? '',
-      timer_sound:  json['timer_sound']  as String? ?? '',
-      color_mode:   json['color_mode']   as String? ?? 'dark',
+      time_format:     json['time_format']     as String? ?? '24h',
+      alarm_sound:     json['alarm_sound']     as String? ?? '',
+      timer_sound:     json['timer_sound']     as String? ?? '',
+      color_mode:      json['color_mode']      as String? ?? 'dark',
+      show_local_time: json['show_local_time'] as bool?   ?? false,
+      night_mode:      json['night_mode']      as bool?   ?? false,
     );
   }
 
@@ -385,6 +394,8 @@ class NoctuaConfig {
         'alarm_sound':      alarm_sound,
         'timer_sound':      timer_sound,
         'color_mode':       color_mode,
+        'show_local_time':  show_local_time,
+        'night_mode':       night_mode,
       };
 
   NoctuaConfig copyWith({
@@ -401,6 +412,8 @@ class NoctuaConfig {
     String?            alarm_sound,
     String?            timer_sound,
     String?            color_mode,
+    bool?              show_local_time,
+    bool?              night_mode,
   }) =>
       NoctuaConfig(
         screens:          screens          ?? this.screens,
@@ -416,5 +429,7 @@ class NoctuaConfig {
         alarm_sound:      alarm_sound      ?? this.alarm_sound,
         timer_sound:      timer_sound      ?? this.timer_sound,
         color_mode:       color_mode       ?? this.color_mode,
+        show_local_time:  show_local_time  ?? this.show_local_time,
+        night_mode:       night_mode       ?? this.night_mode,
       );
 }

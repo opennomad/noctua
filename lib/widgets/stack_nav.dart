@@ -74,7 +74,6 @@ class _StackNavState extends State<StackNav> with TickerProviderStateMixin {
     'clock':       Icons.access_time,
     'world_clock': Icons.language,
     'alarm':       Icons.alarm,
-    'night_clock': Icons.bedtime,
     'timer':       Icons.timer,
     'stopwatch':   Icons.av_timer,
   };

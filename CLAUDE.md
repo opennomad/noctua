@@ -20,12 +20,11 @@ lib/
     city_list.dart           # 115 curated (city, IANA tz_id) pairs
   screens/
     alarm/
-      alarm_screen.dart      # Alarm list with toggle switches
+      alarm_screen.dart      # Alarm list with toggle switches; fade-in + header
       alarm_edit_sheet.dart  # Add/edit bottom sheet; showTimePicker; day-of-week toggles
-      night_clock_screen.dart
     clock/
-      clock_screen.dart          # Shows logo.svg watermark (opacity 12%) at bottom
-      world_clock_screen.dart  # Searchable city picker; custom UTC offset; reorderable list; edit/add buttons inline with label
+      clock_screen.dart          # Shows logo.svg watermark; moon toggle (top-left) enables night mode (dim overlay, no seconds/date)
+      world_clock_screen.dart  # Searchable city picker; custom UTC offset; reorderable list; edit/add buttons inline with label; optional local-time row
     timer/
       timer_screen.dart
       stopwatch_screen.dart
@@ -64,6 +63,8 @@ lib/
 - `formatTime(h, m, fmt)` top-level helper in `noctua_config.dart` — used by Clock, NightClock, WorldClock, AlarmScreen
 - `NoctuaSchemeScope` InheritedWidget injected by `StackNav._scopedScreen(slot)` — wraps each screen with its resolved scheme; `noctuaText(ctx)` reads text colour (falls back to white in modal sheets)
 - `NoctuaConfig.color_mode` ('dark'|'light'|'system'); toggled via `ConfigService.setColorMode()` and the Colour Mode chip row in SettingsPanel
+- `NoctuaConfig.show_local_time` (bool, default false) — shows device local time row at top of world clock list; toggled in Settings → World Clock
+- `NoctuaConfig.night_mode` (bool, default false) — clock screen moon toggle; overlays dim time on black; persisted across restarts; night_clock screen removed
 - `ScreenSlot.light_scheme` — independent hue for light mode (defaults to `scheme`); set via `ConfigService.setScreenLightScheme()`
 - `stack_nav.dart`: `StackNav._effectiveLight(context)` resolves dark/light/system; routes to `slot.light_scheme` vs `slot.scheme`; passes resolved `light` bool to `_bg()` and `_scopedScreen()`
 - Modal sheets (alarm_edit, alarm_dismiss, settings_panel) always use white text regardless of colour mode

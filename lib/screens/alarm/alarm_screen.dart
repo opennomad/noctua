@@ -1,32 +1,72 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../theme/color_schemes.dart';
 import '../../config/config_service.dart';
 import '../../services/alarm_service.dart';
 import 'alarm_edit_sheet.dart';
 
-class AlarmScreen extends StatelessWidget {
+class AlarmScreen extends StatefulWidget {
   final ConfigService config_service;
   const AlarmScreen({super.key, required this.config_service});
 
   @override
+  State<AlarmScreen> createState() => _AlarmScreenState();
+}
+
+class _AlarmScreenState extends State<AlarmScreen>
+    with SingleTickerProviderStateMixin {
+  static const _hide_delay = Duration(seconds: 3);
+  static const _fade_ms    = Duration(milliseconds: 300);
+
+  late AnimationController _ctrl;
+  late Animation<double>   _fade;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: _fade_ms);
+    _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _onTouch(PointerDownEvent _) {
+    _ctrl.forward();
+    _timer?.cancel();
+    _timer = Timer(_hide_delay, () {
+      if (mounted) _ctrl.reverse();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: ListenableBuilder(
-            listenable: config_service,
-            builder: (ctx, child) {
-              final alarms = config_service.config.alarms;
-              return Column(
-                children: [
-                  _header(ctx),
-                  Expanded(
-                    child: alarms.isEmpty ? _empty(ctx) : _list(ctx, alarms),
-                  ),
-                ],
-              );
-            },
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: _onTouch,
+      child: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: ListenableBuilder(
+              listenable: widget.config_service,
+              builder: (ctx, child) {
+                final alarms = widget.config_service.config.alarms;
+                return Column(
+                  children: [
+                    _header(ctx),
+                    Expanded(
+                      child: alarms.isEmpty ? _empty(ctx) : _list(ctx, alarms),
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -36,22 +76,27 @@ class AlarmScreen extends StatelessWidget {
   Widget _header(BuildContext ctx) => Padding(
         padding: const EdgeInsets.fromLTRB(24, 20, 8, 8),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: Text(
-                'Alarms',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w300,
-                  letterSpacing: 4,
-                  color: noctuaText(ctx).withAlpha(128),
-                ),
+            Text(
+              'Alarms',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w300,
+                letterSpacing: 4,
+                color: noctuaText(ctx).withAlpha(128),
               ),
             ),
-            IconButton(
-              icon: Icon(Icons.add, color: noctuaText(ctx).withAlpha(138), size: 22),
-              onPressed: () => showAlarmEditSheet(ctx, config_service),
-              tooltip: 'Add alarm',
+            const SizedBox(width: 4),
+            FadeTransition(
+              opacity: _fade,
+              child: IconButton(
+                icon: Icon(Icons.add, color: noctuaText(ctx).withAlpha(138), size: 18),
+                onPressed: () => showAlarmEditSheet(ctx, widget.config_service),
+                tooltip: 'Add alarm',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              ),
             ),
           ],
         ),
@@ -74,7 +119,7 @@ class AlarmScreen extends StatelessWidget {
             ),
             const SizedBox(height: 32),
             GestureDetector(
-              onTap: () => showAlarmEditSheet(ctx, config_service),
+              onTap: () => showAlarmEditSheet(ctx, widget.config_service),
               child: Container(
                 width: 52, height: 52,
                 decoration: BoxDecoration(
@@ -95,8 +140,8 @@ class AlarmScreen extends StatelessWidget {
         itemCount: alarms.length,
         itemBuilder: (_, i) => _AlarmRow(
           alarm: alarms[i],
-          config_service: config_service,
-          on_tap: () => showAlarmEditSheet(ctx, config_service, alarm: alarms[i]),
+          config_service: widget.config_service,
+          on_tap: () => showAlarmEditSheet(ctx, widget.config_service, alarm: alarms[i]),
         ),
       );
 }

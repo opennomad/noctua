@@ -29,7 +29,6 @@ class _ColourSchemeSheetState extends State<_ColourSchemeSheet> {
     'clock':       'Clock',
     'world_clock': 'World Clock',
     'alarm':       'Alarm',
-    'night_clock': 'Night Clock',
     'timer':       'Timer',
     'stopwatch':   'Stopwatch',
   };

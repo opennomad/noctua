@@ -410,11 +410,11 @@ void main() {
   // ── NoctuaConfig ────────────────────────────────────────────────────────────
 
   group('NoctuaConfig', () {
-    test('defaults contain 6 screens with expected ids', () {
+    test('defaults contain 5 screens with expected ids', () {
       final cfg = NoctuaConfig.defaults;
       final ids  = cfg.screens.map((s) => s.id).toList();
       expect(ids, [
-        'clock', 'world_clock', 'alarm', 'night_clock', 'timer', 'stopwatch',
+        'clock', 'world_clock', 'alarm', 'timer', 'stopwatch',
       ]);
     });
 
@@ -427,7 +427,7 @@ void main() {
     test('fromJson / toJson full round-trip', () {
       final original = NoctuaConfig.defaults;
       final restored  = NoctuaConfig.fromJson(original.toJson());
-      expect(restored.screens.length, original.screens.length);
+      expect(restored.screens.length, 5);
       for (int i = 0; i < original.screens.length; i++) {
         expect(restored.screens[i].id,      original.screens[i].id);
         expect(restored.screens[i].scheme,  original.screens[i].scheme);
@@ -449,6 +449,7 @@ void main() {
         'world_clocks', 'alarms', 'saved_timers',
         'timer_pill_edge', 'key_bindings',
         'time_format', 'alarm_sound', 'timer_sound',
+        'color_mode', 'show_local_time', 'night_mode',
       ]));
     });
 
@@ -468,7 +469,7 @@ void main() {
     // ── migration from old 3-column format ───────────────────────────────────
 
     group('migration from old columns format', () {
-      test('3 columns map to 6 screens with correct schemes', () {
+      test('3 columns map to 5 screens with correct schemes', () {
         final cfg = NoctuaConfig.fromJson({
           'columns': [
             {'scheme': 'blue'},
@@ -477,22 +478,20 @@ void main() {
           ],
           'animation': 'lava_lamp',
         });
-        expect(cfg.screens.length, 6);
+        expect(cfg.screens.length, 5);
         // First column (index 0) → clock + world_clock
         expect(cfg.screens[0].id,     'clock');
         expect(cfg.screens[0].scheme, 'blue');
         expect(cfg.screens[1].id,     'world_clock');
         expect(cfg.screens[1].scheme, 'blue');
-        // Second column (index 1) → alarm + night_clock
+        // Second column (index 1) → alarm
         expect(cfg.screens[2].id,     'alarm');
         expect(cfg.screens[2].scheme, 'purple');
-        expect(cfg.screens[3].id,     'night_clock');
-        expect(cfg.screens[3].scheme, 'purple');
         // Third column (index 2) → timer + stopwatch
-        expect(cfg.screens[4].id,     'timer');
+        expect(cfg.screens[3].id,     'timer');
+        expect(cfg.screens[3].scheme, 'green');
+        expect(cfg.screens[4].id,     'stopwatch');
         expect(cfg.screens[4].scheme, 'green');
-        expect(cfg.screens[5].id,     'stopwatch');
-        expect(cfg.screens[5].scheme, 'green');
       });
 
       test('partial columns list falls back to blue for missing entries', () {
@@ -502,13 +501,26 @@ void main() {
         });
         expect(cfg.screens[0].scheme, 'purple'); // provided
         expect(cfg.screens[2].scheme, 'blue');   // fallback for missing column 1
-        expect(cfg.screens[4].scheme, 'blue');   // fallback for missing column 2
+        expect(cfg.screens[3].scheme, 'blue');   // fallback for missing column 2
+      });
+
+      test('night_clock entries are filtered out of saved screen lists', () {
+        final cfg = NoctuaConfig.fromJson({
+          'screens': [
+            {'id': 'clock',       'scheme': 'blue',   'enabled': true},
+            {'id': 'night_clock', 'scheme': 'hue:5',  'enabled': true},
+            {'id': 'alarm',       'scheme': 'purple',  'enabled': true},
+          ],
+        });
+        final ids = cfg.screens.map((s) => s.id).toList();
+        expect(ids, isNot(contains('night_clock')));
+        expect(ids, containsAll(['clock', 'alarm']));
       });
     });
 
     test('fromJson: no screens and no columns falls back to defaults', () {
       final cfg = NoctuaConfig.fromJson({'animation': 'none'});
-      expect(cfg.screens, hasLength(6));
+      expect(cfg.screens, hasLength(5));
     });
 
     // ── time_format / alarm_sound / timer_sound ──────────────────────────────
@@ -571,6 +583,56 @@ void main() {
       test('toJson preserves value', () {
         final cfg = NoctuaConfig.defaults.copyWith(timer_sound: '/usr/share/sounds/test.oga');
         expect(cfg.toJson()['timer_sound'], '/usr/share/sounds/test.oga');
+      });
+    });
+
+    group('show_local_time', () {
+      test('default is false', () {
+        expect(NoctuaConfig.defaults.show_local_time, false);
+      });
+
+      test('fromJson reads value', () {
+        expect(NoctuaConfig.fromJson({'show_local_time': true}).show_local_time, true);
+      });
+
+      test('fromJson missing key falls back to false', () {
+        expect(NoctuaConfig.fromJson({}).show_local_time, false);
+      });
+
+      test('toJson preserves value', () {
+        final cfg = NoctuaConfig.defaults.copyWith(show_local_time: true);
+        expect(cfg.toJson()['show_local_time'], true);
+      });
+
+      test('copyWith updates only show_local_time', () {
+        final cfg = NoctuaConfig.defaults.copyWith(show_local_time: true);
+        expect(cfg.show_local_time, true);
+        expect(cfg.animation, NoctuaConfig.defaults.animation); // unchanged
+      });
+    });
+
+    group('night_mode', () {
+      test('default is false', () {
+        expect(NoctuaConfig.defaults.night_mode, false);
+      });
+
+      test('fromJson reads value', () {
+        expect(NoctuaConfig.fromJson({'night_mode': true}).night_mode, true);
+      });
+
+      test('fromJson missing key falls back to false', () {
+        expect(NoctuaConfig.fromJson({}).night_mode, false);
+      });
+
+      test('toJson preserves value', () {
+        final cfg = NoctuaConfig.defaults.copyWith(night_mode: true);
+        expect(cfg.toJson()['night_mode'], true);
+      });
+
+      test('copyWith updates only night_mode', () {
+        final cfg = NoctuaConfig.defaults.copyWith(night_mode: true);
+        expect(cfg.night_mode, true);
+        expect(cfg.animation, NoctuaConfig.defaults.animation); // unchanged
       });
     });
 
