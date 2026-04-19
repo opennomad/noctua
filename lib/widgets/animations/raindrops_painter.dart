@@ -51,32 +51,32 @@ class RaindropsPainter extends CustomPainter {
 
     for (int i = 0; i < drops.length; i++) {
       final d = drops[i];
+
       final cycle_t = t + d.phase;
+      final cycle   = cycle_t.floor();
       final ring_t  = cycle_t % 1.0;
-      final cycle   = cycle_t.floor(); // increments each full loop
+
+      // New screen position each cycle; jump happens while radius < 4 px.
+      final cx = (0.05 + _h(i * 9973 + cycle * 1031)        * 0.90) * size.width;
+      final cy = (0.05 + _h(i * 9973 + cycle * 1031 + 4999) * 0.90) * size.height;
 
       final radius = ring_t * d.max_r * size.shortestSide;
       if (radius < 4.0) continue;
 
-      // New screen position each cycle, derived from drop index + cycle number.
-      // The jump happens while the ring is invisible (radius < 4px), so it's seamless.
-      final cx = (0.05 + _h(i * 9973 + cycle * 1031)        * 0.90) * size.width;
-      final cy = (0.05 + _h(i * 9973 + cycle * 1031 + 4999) * 0.90) * size.height;
-
-      final alpha    = ((1.0 - ring_t) * d.opacity * 255).round().clamp(0, 255);
+      final alpha = ((1.0 - ring_t) * d.opacity * 255).round().clamp(0, 255);
       if (alpha < 3) continue;
 
-      final stroke_w = (1.0 - ring_t) * 3.0 + 0.4;
-      final blur     = (1.0 - ring_t) * 5.0 + 1.0;
+      final stroke_w = ring_t * 7.0 + 0.5;
+      final blur     = ring_t * 6.0 + 1.0;
 
       canvas.drawCircle(
         Offset(cx, cy),
         radius,
         Paint()
-          ..style = PaintingStyle.stroke
+          ..style       = PaintingStyle.stroke
           ..strokeWidth = stroke_w
-          ..color = d.color.withAlpha(alpha)
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, blur),
+          ..color       = d.color.withAlpha(alpha)
+          ..maskFilter  = MaskFilter.blur(BlurStyle.normal, blur),
       );
     }
   }

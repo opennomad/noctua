@@ -13,7 +13,7 @@ run = "flutter run -d linux"
 
 [tasks.android]
 description = "run the app on android"
-run = "flutter run -d linux"
+run = "flutter run -d R5CT615C3JJ" 
 
 [tasks.clear-adb]
 description = "run the app on android"

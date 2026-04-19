@@ -87,97 +87,101 @@ class _ClockScreenState extends State<ClockScreen>
         return Listener(
           behavior: HitTestBehavior.translucent,
           onPointerDown: _onTouch,
-          child: SafeArea(
-            child: Stack(
-              children: [
-                // ── normal clock ──────────────────────────────────────────
-                if (!night) ...[
-                  Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _time,
+          child: Stack(
+            children: [
+              // ── night overlay: full-screen, outside SafeArea ──────────
+              if (night)
+                Container(color: Colors.black.withAlpha(200)),
+
+              SafeArea(
+                child: Stack(
+                  children: [
+                    // ── normal clock ────────────────────────────────────
+                    if (!night) ...[
+                      Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              _time,
+                              style: TextStyle(
+                                fontSize: 64,
+                                fontWeight: FontWeight.w100,
+                                letterSpacing: 4,
+                                color: noctuaText(context),
+                                fontFeatures: [FontFeature.tabularFigures()],
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              _date,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w300,
+                                letterSpacing: 2,
+                                color: noctuaText(context).withAlpha(178),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 20, left: 0, right: 0,
+                        child: Opacity(
+                          opacity: 0.12,
+                          child: Center(
+                            child: SvgPicture.asset(
+                              'assets/logo.svg',
+                              width: 48,
+                              height: 48,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    // ── night time text ──────────────────────────────────
+                    if (night)
+                      Center(
+                        child: Text(
+                          _night_time,
                           style: TextStyle(
-                            fontSize: 64,
+                            fontSize: 80,
                             fontWeight: FontWeight.w100,
-                            letterSpacing: 4,
-                            color: noctuaText(context),
+                            letterSpacing: 6,
+                            color: Colors.white.withAlpha(40),
                             fontFeatures: [FontFeature.tabularFigures()],
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        Text(
-                          _date,
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w300,
-                            letterSpacing: 2,
-                            color: noctuaText(context).withAlpha(178),
+                      ),
+
+                    // ── moon toggle (top-left, mirrors gear top-right) ───
+                    Positioned(
+                      top: 0, left: 0,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 12, left: 12),
+                        child: FadeTransition(
+                          opacity: _fade,
+                          child: IconButton(
+                            icon: Icon(
+                              night
+                                  ? Icons.bedtime
+                                  : Icons.bedtime_outlined,
+                              size: 22,
+                              color: night
+                                  ? Colors.white.withAlpha(160)
+                                  : noctuaText(context).withAlpha(160),
+                            ),
+                            onPressed: _toggleNightMode,
+                            tooltip: night ? 'Exit night mode' : 'Night mode',
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 20, left: 0, right: 0,
-                    child: Opacity(
-                      opacity: 0.12,
-                      child: Center(
-                        child: SvgPicture.asset(
-                          'assets/logo.svg',
-                          width: 48,
-                          height: 48,
-                        ),
                       ),
                     ),
-                  ),
-                ],
-
-                // ── night mode overlay ────────────────────────────────────
-                if (night) ...[
-                  Container(color: Colors.black.withAlpha(200)),
-                  Center(
-                    child: Text(
-                      _night_time,
-                      style: TextStyle(
-                        fontSize: 80,
-                        fontWeight: FontWeight.w100,
-                        letterSpacing: 6,
-                        color: Colors.white.withAlpha(40),
-                        fontFeatures: [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                  ),
-                ],
-
-                // ── moon toggle (top-left, mirrors gear top-right) ────────
-                Positioned(
-                  top: 0, left: 0,
-                  child: SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 12, left: 12),
-                      child: FadeTransition(
-                        opacity: _fade,
-                        child: IconButton(
-                          icon: Icon(
-                            night
-                                ? Icons.bedtime
-                                : Icons.bedtime_outlined,
-                            size: 22,
-                            color: night
-                                ? Colors.white.withAlpha(160)
-                                : noctuaText(context).withAlpha(160),
-                          ),
-                          onPressed: _toggleNightMode,
-                          tooltip: night ? 'Exit night mode' : 'Night mode',
-                        ),
-                      ),
-                    ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },

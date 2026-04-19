@@ -426,27 +426,30 @@ class _TimerScreenState extends State<TimerScreen>
       main_display = _displayText(s);
     }
 
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        if (saved_name != null) ...[
-          Text(
-            saved_name,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w300,
-              letterSpacing: 2,
-              color: noctuaText(context).withAlpha(120),
+    return LayoutBuilder(builder: (context, constraints) {
+      final tight = constraints.maxHeight < 320;
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (saved_name != null) ...[
+            Text(
+              saved_name,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w300,
+                letterSpacing: 2,
+                color: noctuaText(context).withAlpha(120),
+              ),
             ),
-          ),
-          const SizedBox(height: 10),
+            SizedBox(height: tight ? 4 : 10),
+          ],
+          main_display,
+          SizedBox(height: tight ? 16 : 48),
+          _controls(s),
+          if (edge == 'bottom') SizedBox(height: tight ? 40 : 80),
         ],
-        main_display,
-        const SizedBox(height: 48),
-        _controls(s),
-        if (edge == 'bottom') const SizedBox(height: 80),
-      ],
-    );
+      );
+    });
   }
 
   Widget _displayText(_TState s) => Text(

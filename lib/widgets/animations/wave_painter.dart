@@ -35,7 +35,8 @@ List<Wave> buildWaves(NoctuaColorScheme s, AnimationParams p) {
     return (seed & 0xFFFFFF) / 0xFFFFFF;
   }
 
-  final count = (2 + p.density * 2).round().clamp(2, 5);
+  // Cap at 4 sources — 5 rarely adds visible variety but costs 25 % more GPU.
+  final count = (2 + p.density * 2).round().clamp(2, 4);
 
   // All sources cluster on the same side so every front travels in the same
   // direction — like wind-driven waves on open water.
@@ -72,12 +73,31 @@ List<Wave> buildWaves(NoctuaColorScheme s, AnimationParams p) {
       rnd() * 2 * pi,       // py
       i / count,            // phase: stagger ring sets across sources
       max_r,
-      5,                    // 5 rings — at ~38 % visibility each, ~1.9 rings on-screen at once
+      3,                    // 3 rings — at ~38 % visibility each, ~1.1 rings on-screen
       base_opacity,
       i.isEven ? s.secondary : s.accent,
     );
   });
 }
+
+// ─── per-ring glow approximation ─────────────────────────────────────────────
+//
+// MaskFilter.blur is O(pixels × sigma²) — catastrophically slow on large
+// screens.  Instead we stack a handful of concentric transparent strokes,
+// each a bit wider and more transparent than the last, to simulate the
+// Gaussian falloff.  Cost is O(draw_calls) regardless of screen resolution.
+//
+// Layers (back → front):
+//   diffuse  wide, very low α  — broad halo behind the wavefront
+//   mid      medium, mid α     — intermediate glow
+//   inner    narrower, higher α — tight glow hugging the crest
+//   crest    thin, full α      — sharp leading edge
+
+const List<({double r_off, double sw_mul, double a_mul})> _glow_layers = [
+  (r_off: -2.80, sw_mul: 5.5, a_mul: 0.06),  // diffuse
+  (r_off: -1.60, sw_mul: 3.5, a_mul: 0.14),  // mid
+  (r_off: -0.55, sw_mul: 2.0, a_mul: 0.26),  // inner
+];
 
 class WavePainter extends CustomPainter {
   final List<Wave> waves;
@@ -100,6 +120,18 @@ class WavePainter extends CustomPainter {
       final center = Offset(pos.dx * size.width, pos.dy * size.height);
       final max_r = w.max_r * size.longestSide;
 
+      // Pre-compute screen distance bounds for this source so ring culling is
+      // O(1) — skips rings that haven't entered or have already left the screen.
+      final nx = center.dx.clamp(0.0, size.width);
+      final ny = center.dy.clamp(0.0, size.height);
+      final min_screen_dist = (center - Offset(nx, ny)).distance;
+      final max_screen_dist = [
+        (center - Offset(0, 0)).distance,
+        (center - Offset(size.width, 0)).distance,
+        (center - Offset(0, size.height)).distance,
+        (center - Offset(size.width, size.height)).distance,
+      ].reduce(max);
+
       for (int i = 0; i < w.rings; i++) {
         final ring_t = (t + w.phase + i / w.rings) % 1.0;
         final radius = ring_t * max_r;
@@ -109,41 +141,33 @@ class WavePainter extends CustomPainter {
         if (alpha < 2) continue;
 
         final stroke_w = 4.0 + (1.0 - ring_t) * 8.0;
-        final blur = 6.0 + ring_t * 10.0;
 
-        // Two wake passes behind the crest, each stepping further back with
-        // lower opacity and heavier blur — builds a gradual gradient fade.
-        final wake1_alpha = (alpha * 0.30).round().clamp(0, 255);
-        canvas.drawCircle(
-          center,
-          radius - stroke_w * 0.8,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = stroke_w * 2.5
-            ..color = w.color.withAlpha(wake1_alpha)
-            ..maskFilter = MaskFilter.blur(BlurStyle.normal, blur * 2.0),
-        );
+        // Cull: ring hasn't reached the screen yet.
+        if (radius + stroke_w * 5.5 < min_screen_dist) continue;
 
-        final wake2_alpha = (alpha * 0.12).round().clamp(0, 255);
-        canvas.drawCircle(
-          center,
-          radius - stroke_w * 2.2,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = stroke_w * 4.5
-            ..color = w.color.withAlpha(wake2_alpha)
-            ..maskFilter = MaskFilter.blur(BlurStyle.normal, blur * 3.5),
-        );
+        // Cull: ring has swept entirely past the screen.
+        if (radius - stroke_w * 5.5 > max_screen_dist) continue;
 
-        // Leading wavefront crest — sharpest and brightest, on top of the wake.
+        // Glow layers — stacked transparent strokes, widest first.
+        for (final layer in _glow_layers) {
+          final r = max(0.0, radius + layer.r_off * stroke_w);
+          canvas.drawCircle(
+            center, r,
+            Paint()
+              ..style      = PaintingStyle.stroke
+              ..strokeWidth = stroke_w * layer.sw_mul
+              ..color      = w.color.withAlpha(
+                  (alpha * layer.a_mul).round().clamp(0, 255)),
+          );
+        }
+
+        // Sharp crest on top.
         canvas.drawCircle(
-          center,
-          radius,
+          center, radius,
           Paint()
-            ..style = PaintingStyle.stroke
+            ..style      = PaintingStyle.stroke
             ..strokeWidth = stroke_w
-            ..color = w.color.withAlpha(alpha)
-            ..maskFilter = MaskFilter.blur(BlurStyle.normal, blur),
+            ..color      = w.color.withAlpha(alpha),
         );
       }
     }

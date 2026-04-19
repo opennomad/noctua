@@ -45,7 +45,7 @@ lib/
     animations/
       lava_lamp_painter.dart
       raindrops_painter.dart
-      wave_painter.dart      # Off-screen sources → sweeping wavefronts; two wake passes
+      wave_painter.dart      # Off-screen sources → sweeping wavefronts; no MaskFilter.blur (glow via stacked strokes); 3 rings / 4 sources max; off-screen culling
       pulse_painter.dart     # Fade-in/out envelope; two wake passes; centre glow
 ```
 
@@ -65,6 +65,10 @@ lib/
 - `NoctuaConfig.color_mode` ('dark'|'light'|'system'); toggled via `ConfigService.setColorMode()` and the Colour Mode chip row in SettingsPanel
 - `NoctuaConfig.show_local_time` (bool, default false) — shows device local time row at top of world clock list; toggled in Settings → World Clock
 - `NoctuaConfig.night_mode` (bool, default false) — clock screen moon toggle; overlays dim time on black; persisted across restarts; night_clock screen removed
+- Night mode `Container(black)` sits outside `SafeArea` in a parent Stack so it covers the status bar area in landscape
+- `timer_screen.dart` `_body()` uses `LayoutBuilder` to compress gaps in landscape (tight = maxHeight < 320): spacer 48→16, bottom pill pad 80→40
+- `raindrops_painter.dart`: `stroke_w` and `blur` grow with `ring_t` (thin/sharp at impact, wide/soft at full radius)
+- `wave_painter.dart`: `MaskFilter.blur` removed — replaced with `_glow_layers` (3 stacked transparent strokes per ring); rings 5→3, sources capped at 4, off-screen culling via min/max screen distance
 - `ScreenSlot.light_scheme` — independent hue for light mode (defaults to `scheme`); set via `ConfigService.setScreenLightScheme()`
 - `stack_nav.dart`: `StackNav._effectiveLight(context)` resolves dark/light/system; routes to `slot.light_scheme` vs `slot.scheme`; passes resolved `light` bool to `_bg()` and `_scopedScreen()`
 - Modal sheets (alarm_edit, alarm_dismiss, settings_panel) always use white text regardless of colour mode
