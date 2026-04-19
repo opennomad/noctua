@@ -30,6 +30,7 @@ class _SettingsPanelState extends State<_SettingsPanel> {
   late double            _speed;
   late double            _density;
   late double            _amplitude;
+  late double            _direction;
   late List<ScreenSlot>  _screens;
   late String            _font;
   late String            _pill_edge;
@@ -56,9 +57,7 @@ class _SettingsPanelState extends State<_SettingsPanel> {
     super.initState();
     final cfg  = widget.svc.config;
     _animation = cfg.animation;
-    _speed     = cfg.animation_params.speed;
-    _density   = cfg.animation_params.density;
-    _amplitude = cfg.animation_params.amplitude;
+    _loadParamsFromConfig(cfg, cfg.animation);
     _screens   = List<ScreenSlot>.from(cfg.screens);
     _font      = cfg.font;
     _pill_edge   = cfg.timer_pill_edge;
@@ -95,15 +94,31 @@ class _SettingsPanelState extends State<_SettingsPanel> {
 
   // ── helpers ────────────────────────────────────────────────────────────────
 
-  AnimationParams get _params => AnimationParams(
-        speed: _speed, density: _density, amplitude: _amplitude);
+  void _loadParamsFromConfig(NoctuaConfig cfg, String animation) {
+    final p = cfg.paramsFor(animation);
+    _speed     = p.speed;
+    _density   = p.density;
+    _amplitude = p.amplitude;
+    _direction = p.direction;
+  }
 
-  void _liveParams(AnimationParams p) => widget.svc.setAnimationParamsLive(p);
-  void _saveParams(AnimationParams p) => widget.svc.setAnimationParams(p);
+  AnimationParams get _params => AnimationParams(
+        speed: _speed, density: _density, amplitude: _amplitude,
+        direction: _direction);
+
+  void _liveParams(AnimationParams p) =>
+      widget.svc.setAnimationParamsLive(_animation, p);
+  void _saveParams(AnimationParams p) =>
+      widget.svc.setAnimationParams(_animation, p);
 
   void _setAnimation(String val) {
-    setState(() => _animation = val);
+    setState(() {
+      _animation = val;
+      _loadParamsFromConfig(widget.svc.config, val);
+    });
     widget.svc.setAnimation(val);
+    // Push the current (possibly default) params live so the preview updates.
+    widget.svc.setAnimationParamsLive(val, _params);
   }
 
   void _setFont(String val) {
@@ -611,8 +626,8 @@ class _SettingsPanelState extends State<_SettingsPanel> {
   static const _anim_options = [
     ('lava_lamp', 'Lava Lamp'),
     ('raindrops', 'Rain'),
-    ('wave',      'Wave'),
-    ('pulse',     'Pulse'),
+    ('bubbles',   'Bubbles'),
+    ('breath',    'Breath'),
     ('none',      'None'),
   ];
 

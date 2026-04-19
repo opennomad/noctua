@@ -405,6 +405,38 @@ void main() {
       expect(updated.density,   1.0);
       expect(updated.amplitude, 1.0);
     });
+
+    group('defaultsFor', () {
+      test('bubbles defaults: speed 0.5, density 0.5, amplitude 0.3', () {
+        final p = AnimationParams.defaultsFor('bubbles');
+        expect(p.speed,     0.5);
+        expect(p.density,   0.5);
+        expect(p.amplitude, 0.3);
+      });
+
+      test('lava_lamp defaults: speed 1.0, density 1.1, amplitude 1.1', () {
+        final p = AnimationParams.defaultsFor('lava_lamp');
+        expect(p.speed,     1.0);
+        expect(p.density,   1.1);
+        expect(p.amplitude, 1.1);
+      });
+
+      test('unknown animation falls back to generic defaults', () {
+        final p = AnimationParams.defaultsFor('unknown');
+        expect(p.speed,     1.0);
+        expect(p.density,   1.0);
+        expect(p.amplitude, 1.0);
+      });
+
+      test('breath and raindrops use generic defaults', () {
+        for (final anim in ['breath', 'raindrops', 'none']) {
+          final p = AnimationParams.defaultsFor(anim);
+          expect(p.speed,     1.0, reason: anim);
+          expect(p.density,   1.0, reason: anim);
+          expect(p.amplitude, 1.0, reason: anim);
+        }
+      });
+    });
   });
 
   // ── NoctuaConfig ────────────────────────────────────────────────────────────
@@ -445,7 +477,7 @@ void main() {
     test('toJson contains all required top-level keys', () {
       final json = NoctuaConfig.defaults.toJson();
       expect(json.keys, containsAll([
-        'screens', 'animation', 'animation_params', 'font',
+        'screens', 'animation', 'animation_params_map', 'font',
         'world_clocks', 'alarms', 'saved_timers',
         'timer_pill_edge', 'key_bindings',
         'time_format', 'alarm_sound', 'timer_sound',
@@ -636,12 +668,81 @@ void main() {
       });
     });
 
+    // ── paramsFor ─────────────────────────────────────────────────────────────
+
+    group('paramsFor', () {
+      test('returns animation-specific defaults when map is empty', () {
+        final cfg = NoctuaConfig.defaults; // animation_params_map is {}
+        final p   = cfg.paramsFor('bubbles');
+        expect(p.speed,     0.5);
+        expect(p.density,   0.5);
+        expect(p.amplitude, 0.3);
+      });
+
+      test('returns saved params when present in map', () {
+        const saved = AnimationParams(speed: 1.8, density: 0.7, amplitude: 1.2);
+        final cfg   = NoctuaConfig.defaults.copyWith(
+          animation_params_map: {'breath': saved},
+        );
+        final p = cfg.paramsFor('breath');
+        expect(p.speed,     1.8);
+        expect(p.density,   0.7);
+        expect(p.amplitude, 1.2);
+      });
+
+      test('falls back to defaultsFor when animation not in map', () {
+        final cfg = NoctuaConfig.defaults.copyWith(
+          animation_params_map: {'breath': const AnimationParams(speed: 2.0)},
+        );
+        // bubbles not in map → use AnimationParams.defaultsFor('bubbles')
+        expect(cfg.paramsFor('bubbles').speed, 0.5);
+      });
+    });
+
+    // ── animation_params_map round-trip ───────────────────────────────────────
+
+    group('animation_params_map', () {
+      test('fromJson / toJson round-trip preserves per-animation params', () {
+        final original = NoctuaConfig.defaults.copyWith(
+          animation_params_map: {
+            'bubbles':   const AnimationParams(speed: 0.5, density: 0.5, amplitude: 0.3),
+            'lava_lamp': const AnimationParams(speed: 1.0, density: 1.1, amplitude: 1.1),
+          },
+        );
+        final restored = NoctuaConfig.fromJson(original.toJson());
+        expect(restored.paramsFor('bubbles').speed,        0.5);
+        expect(restored.paramsFor('bubbles').density,      0.5);
+        expect(restored.paramsFor('bubbles').amplitude,    0.3);
+        expect(restored.paramsFor('lava_lamp').density,    1.1);
+        expect(restored.paramsFor('lava_lamp').amplitude,  1.1);
+      });
+
+      test('fromJson migrates legacy animation_params key to current animation', () {
+        final cfg = NoctuaConfig.fromJson({
+          'animation':        'breath',
+          'animation_params': {'speed': 1.5, 'density': 0.8, 'amplitude': 1.2,
+                               'direction': 0.25},
+        });
+        // Legacy value should land under 'breath'.
+        expect(cfg.paramsFor('breath').speed,     1.5);
+        expect(cfg.paramsFor('breath').density,   0.8);
+        expect(cfg.paramsFor('breath').amplitude, 1.2);
+      });
+
+      test('fromJson: absent map and absent legacy key yields empty map', () {
+        final cfg = NoctuaConfig.fromJson({'animation': 'lava_lamp'});
+        // No saved entry → falls back to per-animation default.
+        expect(cfg.animation_params_map, isEmpty);
+        expect(cfg.paramsFor('lava_lamp').density, 1.1);
+      });
+    });
+
     // ── copyWith ─────────────────────────────────────────────────────────────
 
     test('copyWith: only specified fields change', () {
       final cfg     = NoctuaConfig.defaults;
-      final updated = cfg.copyWith(animation: 'wave', font: 'mono');
-      expect(updated.animation, 'wave');
+      final updated = cfg.copyWith(animation: 'breath', font: 'mono');
+      expect(updated.animation, 'breath');
       expect(updated.font,      'mono');
       expect(updated.screens,   cfg.screens); // unchanged
     });

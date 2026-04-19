@@ -6,6 +6,7 @@
 mise exec -- flutter run -d linux      # Linux desktop (dev)
 mise exec -- flutter run               # Android device
 mise exec -- flutter analyze           # must be clean before committing
+mise exec -- flutter test              # must be clean before committing
 ```
 
 ## Architecture
@@ -39,14 +40,17 @@ lib/
     hue_slider.dart          # Shared HueSlider widget + painter (used by colour_scheme_sheet)
     fonts.dart               # google_fonts wrappers; applyFont(); fontPreviewStyle()
   widgets/
-    animated_background.dart # Ticker-based; monotonic _t; 'none' = _SolidPainter
+    animated_background.dart # Ticker-based; monotonic _t; 'none' = _SolidPainter; loads bubbles.frag FragmentProgram async
     stack_nav.dart           # Swipe/programmatic nav; crossfade BG + FG; pills overlay at bottom edge (SafeArea + 12 px padding); light-aware pill ink colour
     settings_overlay.dart    # Listener (no gesture arena); fade-in gear icon; 3 s auto-hide; top-right corner with 12 px padding; light-mode-aware icon colour
     animations/
       lava_lamp_painter.dart
       raindrops_painter.dart
-      wave_painter.dart      # Off-screen sources → sweeping wavefronts; no MaskFilter.blur (glow via stacked strokes); 3 rings / 4 sources max; off-screen culling
-      pulse_painter.dart     # Fade-in/out envelope; two wake passes; centre glow
+      bubbles_painter.dart   # GPU GLSL shader (assets/shaders/bubbles.frag); 3×3 cell neighbourhood lookup eliminates grid-line clipping; fract() seamless vertical loop; smoothstep fade-in/out uses 1-smoothstep(lo,hi,x) not smoothstep(hi,lo,x)
+      breath_painter.dart    # 96-point organic blob; 7 incommensurable sine harmonics; breathes 55%→90% of half_min; MaskFilter.blur(normal,22) on fill feathers the boundary; two glow stroke passes; no transparent stop in gradient
+assets/
+  shaders/
+    bubbles.frag             # GLSL fragment shader; uniform u_time is fractional cycle (not radians); 3×3 cell neighbourhood; 1-smoothstep for fade-out
 ```
 
 ## Key conventions
@@ -54,7 +58,7 @@ lib/
 - Flutter 3.41 / Dart 3.11 via `mise`
 - `flutter_timezone` detects device IANA timezone at startup; `tz.setLocalLocation()` is called in `main()` so `tz.local` is correct — without this, one-shot alarms fire at the wrong time (UTC offset error)
 - snake_case locals (lint rules disabled in analysis_options.yaml)
-- `color.withAlpha(int)` — never `.red/.green/.blue` (deprecated)
+- `color.withAlpha(int)` — never `.red/.green/.blue` (deprecated); use `.r/.g/.b/.a` (double 0–1) when component access is needed (e.g. passing to FragmentShader)
 - Animations use a `Ticker` for monotonically increasing time — no hard reset loops
 - `Listener` (not `GestureDetector`) for vertical nav in ColumnPage — stays out of gesture arena
 - `Platform.isAndroid` / `Platform.isLinux` guards in AlarmService and RingtoneService
@@ -68,7 +72,6 @@ lib/
 - Night mode `Container(black)` sits outside `SafeArea` in a parent Stack so it covers the status bar area in landscape
 - `timer_screen.dart` `_body()` uses `LayoutBuilder` to compress gaps in landscape (tight = maxHeight < 320): spacer 48→16, bottom pill pad 80→40
 - `raindrops_painter.dart`: `stroke_w` and `blur` grow with `ring_t` (thin/sharp at impact, wide/soft at full radius)
-- `wave_painter.dart`: `MaskFilter.blur` removed — replaced with `_glow_layers` (3 stacked transparent strokes per ring); rings 5→3, sources capped at 4, off-screen culling via min/max screen distance
 - `ScreenSlot.light_scheme` — independent hue for light mode (defaults to `scheme`); set via `ConfigService.setScreenLightScheme()`
 - `stack_nav.dart`: `StackNav._effectiveLight(context)` resolves dark/light/system; routes to `slot.light_scheme` vs `slot.scheme`; passes resolved `light` bool to `_bg()` and `_scopedScreen()`
 - Modal sheets (alarm_edit, alarm_dismiss, settings_panel) always use white text regardless of colour mode
@@ -78,4 +81,7 @@ lib/
 - `ScrollConfiguration(behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false))` suppresses the scrollbar widget entirely in bottom sheets (vs `ScrollbarTheme` which only styles it)
 - `flutter_svg` renders `assets/logo.svg`; declared in `pubspec.yaml` under `assets`
 - `flutter_timezone ^5.0.2`: `FlutterTimezone.getLocalTimezone()` returns `TimezoneInfo`; use `.identifier` property
-- Commit only when `flutter analyze` reports no issues
+- `NoctuaConfig.animation_params_map: Map<String, AnimationParams>` stores params per animation; `paramsFor(anim)` looks up map then falls back to `AnimationParams.defaultsFor(anim)`; `setAnimationParams(anim, params)` / `setAnimationParamsLive(anim, params)` in ConfigService both take the animation name; settings panel reloads slider values when switching animation chip
+- `AnimationParams.defaultsFor(animation)`: bubbles → 0.5/0.5/0.3; lava_lamp → 1.0/1.1/1.1; all others → 1.0/1.0/1.0
+- GLSL `smoothstep(edge0, edge1, x)` is undefined when edge0 ≥ edge1 — always use `1.0 - smoothstep(lo, hi, x)` for a reversed ramp, never `smoothstep(hi, lo, x)`
+- Commit only when `flutter analyze` and `flutter test` both report no issues

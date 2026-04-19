@@ -223,13 +223,17 @@ class ConfigService extends ChangeNotifier {
 
   /// Update params and notify listeners without writing to disk — use during
   /// slider drag for a live preview.  Call [setAnimationParams] on drag end.
-  void setAnimationParamsLive(AnimationParams params) {
-    _config = _config.copyWith(animation_params: params);
+  void setAnimationParamsLive(String animation, AnimationParams params) {
+    _config = _config.copyWith(
+      animation_params_map: {..._config.animation_params_map, animation: params},
+    );
     notifyListeners();
   }
 
-  Future<void> setAnimationParams(AnimationParams params) async {
-    _config = _config.copyWith(animation_params: params);
+  Future<void> setAnimationParams(String animation, AnimationParams params) async {
+    _config = _config.copyWith(
+      animation_params_map: {..._config.animation_params_map, animation: params},
+    );
     notifyListeners();
     await save();
   }

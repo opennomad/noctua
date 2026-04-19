@@ -192,30 +192,50 @@ class AnimationParams {
   /// Size or intensity multiplier (blob radius, wave height, ring scale, etc.).
   final double amplitude;
 
+  /// Travel direction for the wave animation (0.0–1.0 maps to 0–2π).
+  /// 0.0 = rightward, 0.25 = downward, 0.5 = leftward, 0.75 = upward.
+  final double direction;
+
   const AnimationParams({
     this.speed = 1.0,
     this.density = 1.0,
     this.amplitude = 1.0,
+    this.direction = 0.25,
   });
 
   factory AnimationParams.fromJson(Map<String, dynamic> json) => AnimationParams(
         speed:     (json['speed']     as num?)?.toDouble() ?? 1.0,
         density:   (json['density']   as num?)?.toDouble() ?? 1.0,
         amplitude: (json['amplitude'] as num?)?.toDouble() ?? 1.0,
+        direction: (json['direction'] as num?)?.toDouble() ?? 0.25,
       );
 
   Map<String, dynamic> toJson() => {
         'speed':     speed,
         'density':   density,
         'amplitude': amplitude,
+        'direction': direction,
       };
 
-  AnimationParams copyWith({double? speed, double? density, double? amplitude}) =>
+  AnimationParams copyWith({
+    double? speed,
+    double? density,
+    double? amplitude,
+    double? direction,
+  }) =>
       AnimationParams(
         speed:     speed     ?? this.speed,
         density:   density   ?? this.density,
         amplitude: amplitude ?? this.amplitude,
+        direction: direction ?? this.direction,
       );
+
+  /// Per-animation defaults used when no saved params exist for that animation.
+  static AnimationParams defaultsFor(String animation) => switch (animation) {
+    'bubbles'   => const AnimationParams(speed: 0.5, density: 0.5, amplitude: 0.3),
+    'lava_lamp' => const AnimationParams(speed: 1.0, density: 1.1, amplitude: 1.1),
+    _           => const AnimationParams(),
+  };
 }
 
 /// Format an hour+minute pair according to [time_format].
@@ -236,6 +256,25 @@ String formatTime(int hour, int minute, String time_format,
   return include_seconds ? '$base:$s' : base;
 }
 
+// Parses animation_params_map from JSON, with migration from the old single
+// animation_params key so existing config files keep their saved values.
+Map<String, AnimationParams> _parseParamsMap(Map<String, dynamic> json) {
+  if (json['animation_params_map'] is Map) {
+    return (json['animation_params_map'] as Map).map(
+      (k, v) => MapEntry(k as String,
+          AnimationParams.fromJson(v as Map<String, dynamic>)),
+    );
+  }
+  // Legacy: single animation_params — store it under the saved animation key.
+  if (json['animation_params'] is Map) {
+    final anim   = json['animation'] as String? ?? 'lava_lamp';
+    final params = AnimationParams.fromJson(
+        json['animation_params'] as Map<String, dynamic>);
+    return {anim: params};
+  }
+  return const {};
+}
+
 /// Root config object written to noctua_config.json.
 class NoctuaConfig {
   /// Ordered list of screens in the navigation stack.
@@ -244,8 +283,9 @@ class NoctuaConfig {
   /// Animation style applied to all backgrounds.
   final String animation;
 
-  /// Parameters for the active animation.
-  final AnimationParams animation_params;
+  /// Per-animation parameters, keyed by animation name.
+  /// Animations absent from the map fall back to [AnimationParams.defaultsFor].
+  final Map<String, AnimationParams> animation_params_map;
 
   /// Font family key.
   final String font;
@@ -286,7 +326,7 @@ class NoctuaConfig {
   const NoctuaConfig({
     required this.screens,
     required this.animation,
-    this.animation_params = const AnimationParams(),
+    this.animation_params_map = const {},
     this.font = 'default',
     this.world_clocks = const [
       ZoneConfig(city: 'London',   tz_id: 'Europe/London'),
@@ -314,9 +354,14 @@ class NoctuaConfig {
           ScreenSlot(id: 'stopwatch',   scheme: 'hue:45'),   // amber
         ],
         animation: 'lava_lamp',
-        animation_params: AnimationParams(),
+        animation_params_map: {},
         font: 'default',
       );
+
+  /// Returns the saved params for [animation], falling back to per-animation
+  /// defaults when nothing has been saved for that animation yet.
+  AnimationParams paramsFor(String animation) =>
+      animation_params_map[animation] ?? AnimationParams.defaultsFor(animation);
 
   factory NoctuaConfig.fromJson(Map<String, dynamic> json) {
     List<ScreenSlot> parsed_screens;
@@ -347,10 +392,7 @@ class NoctuaConfig {
     return NoctuaConfig(
       screens: parsed_screens,
       animation: json['animation'] as String? ?? 'lava_lamp',
-      animation_params: json['animation_params'] is Map
-          ? AnimationParams.fromJson(
-              json['animation_params'] as Map<String, dynamic>)
-          : const AnimationParams(),
+      animation_params_map: _parseParamsMap(json),
       font: json['font'] as String? ?? 'default',
       world_clocks: json['world_clocks'] is List
           ? (json['world_clocks'] as List)
@@ -383,7 +425,7 @@ class NoctuaConfig {
   Map<String, dynamic> toJson() => {
         'screens':          screens.map((s) => s.toJson()).toList(),
         'animation':        animation,
-        'animation_params': animation_params.toJson(),
+        'animation_params_map': animation_params_map.map((k, v) => MapEntry(k, v.toJson())),
         'font':             font,
         'world_clocks':     world_clocks.map((z) => z.toJson()).toList(),
         'alarms':           alarms.map((a) => a.toJson()).toList(),
@@ -401,7 +443,7 @@ class NoctuaConfig {
   NoctuaConfig copyWith({
     List<ScreenSlot>?  screens,
     String?            animation,
-    AnimationParams?   animation_params,
+    Map<String, AnimationParams>? animation_params_map,
     String?            font,
     List<ZoneConfig>?  world_clocks,
     List<AlarmConfig>? alarms,
@@ -418,7 +460,7 @@ class NoctuaConfig {
       NoctuaConfig(
         screens:          screens          ?? this.screens,
         animation:        animation        ?? this.animation,
-        animation_params: animation_params ?? this.animation_params,
+        animation_params_map: animation_params_map ?? this.animation_params_map,
         font:             font             ?? this.font,
         world_clocks:     world_clocks     ?? this.world_clocks,
         alarms:           alarms           ?? this.alarms,

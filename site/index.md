@@ -1,7 +1,7 @@
 ---
 layout: base.njk
 title: Noctua — A Clock App for Linux and Android
-description: Six individually-coloured screens, animated backgrounds, alarms, timers, and world clock. Runs on Linux desktop and Android.
+description: Five individually-coloured screens, animated backgrounds, alarms, timers, and world clock. Runs on Linux desktop and Android.
 ---
 
 <header class="hero">
@@ -11,7 +11,7 @@ description: Six individually-coloured screens, animated backgrounds, alarms, ti
 # Noctua
 
 **A minimal clock app for Linux desktop and Android.**  
-Six screens. Animated backgrounds. Alarms that actually fire.
+Five screens. Animated backgrounds. Alarms that actually fire.
 
 <nav class="cta-row">
   <a class="btn btn-primary" href="https://github.com/opennomad/noctua">View on GitHub</a>
@@ -32,7 +32,7 @@ Navigate by horizontal swipe, arrow keys, or the icon pills on the right edge.
 
 ### Clock
 ![Clock screen placeholder](img/screen-clock.png)
-Digital time and date. Configurable font and colour scheme.
+Digital time and date. Configurable font and colour scheme. Moon icon toggles night mode — dimmed display with no seconds or date, easy on the eyes at 3 AM.
 
 </div>
 
@@ -49,14 +49,6 @@ Search 115 cities or enter a custom UTC offset. Drag to reorder. Live DST-aware 
 ### Alarm
 ![Alarm screen placeholder](img/screen-alarm.png)
 One-shot and repeating alarms. Day-of-week toggles, labels, Dismiss and Snooze 10 min.
-
-</div>
-
-<div class="screen-card">
-
-### Night Clock
-![Night Clock screen placeholder](img/screen-night-clock.png)
-Dimmed full-screen bedside display. Easy on the eyes at 3 AM.
 
 </div>
 
@@ -87,7 +79,7 @@ Lap recording with a fixed-width layout so digits never shift.
 <div class="feature">
 
 #### Animated Backgrounds
-Five styles — Lava Lamp, Raindrops, Wave, Pulse, or None. Density, speed, and amplitude are tunable. A single shared ticker drives all backgrounds simultaneously so they stay in sync.
+Five styles — Lava Lamp, Raindrops, Bubbles, Breath, or None. Bubbles uses a GLSL fragment shader for smooth GPU-rendered rising spheres. Breath is an organic morphing blob that swells and retreats. Density, speed, and amplitude are tunable with per-animation defaults. A single shared ticker drives all backgrounds simultaneously so they stay in sync.
 
 </div>
 
@@ -108,7 +100,7 @@ Android ringtones are enumerated directly from `RingtoneManager`. On Linux, any 
 <div class="feature">
 
 #### 24h / 12h Format
-One tap in settings. Applies everywhere — Clock, Night Clock, World Clock, and the Alarm list.
+One tap in settings. Applies everywhere — Clock, World Clock, and the Alarm list.
 
 </div>
 
@@ -148,9 +140,6 @@ Human-readable JSON at `~/.config/noctua/noctua_config.json` (Linux) or the app 
 
 ![Settings panel placeholder](img/screenshot-settings.png)
 *Settings panel — animation, font, colour, sound, and time format*
-
-![Alarm dismiss sheet placeholder](img/screenshot-alarm-dismiss.png)
-*Alarm dismiss sheet — shown when an alarm fires while the app is open*
 
 ![Timer with presets placeholder](img/screenshot-timer-presets.png)
 *Timer screen with saved presets visible*

@@ -2,29 +2,28 @@
 
 ![Noctua owl logo](assets/logo.svg)
 
-A Flutter clock app for Linux desktop and Android. Six individually-coloured screens, animated backgrounds, alarm and timer notifications with configurable sound.
+A Flutter clock app for Linux desktop and Android. Five individually-coloured screens, animated backgrounds, alarm and timer notifications with configurable sound.
 
 ## Screens
 
-Six screens navigable by horizontal swipe, keyboard arrow keys, or the icon pills on the right edge:
+Five screens navigable by horizontal swipe, keyboard arrow keys, or the icon pills on the right edge:
 
 | Screen | Description |
 |--------|-------------|
-| **Clock** | Digital clock with date (blue) |
-| **World Clock** | Searchable multi-zone clock; reorderable, custom UTC offset (teal) |
-| **Alarm** | Alarm list with toggle, label, and repeat-day picker (purple) |
-| **Night Clock** | Dimmed full-screen bedside clock (deep red) |
-| **Timer** | Scroll-drum input; multiple simultaneous timers; saved presets (green) |
-| **Stopwatch** | Lap recording; fixed-width layout (amber) |
+| **Clock** | Digital clock with date; moon icon toggles night mode (dim overlay, no seconds/date) |
+| **World Clock** | Searchable multi-zone clock; reorderable, custom UTC offset |
+| **Alarm** | Alarm list with toggle, label, and repeat-day picker |
+| **Timer** | Scroll-drum input; multiple simultaneous timers; saved presets |
+| **Stopwatch** | Lap recording; fixed-width layout |
 
-Each screen has its own colour scheme. All six are configurable in settings.
+Each screen has its own colour scheme, configurable in Settings.
 
 ## Features
 
-- **Animated backgrounds** — Lava Lamp, Raindrops, Wave, Pulse, or None; single shared ticker drives all backgrounds simultaneously
+- **Animated backgrounds** — Lava Lamp, Raindrops, Bubbles (GLSL fragment shader), Breath (organic morphing blob), or None; single shared ticker drives all backgrounds simultaneously; per-animation parameter defaults
 - **Per-screen colour** — full hue picker or named presets (blue / purple / green)
 - **Font selection** — Default, Orbitron, Raleway, Oxanium, Mono, Exo 2
-- **Time format** — toggle between 24-hour and 12-hour (AM/PM); applies to Clock, Night Clock, World Clock, and Alarm list
+- **Time format** — toggle between 24-hour and 12-hour (AM/PM); applies to Clock, World Clock, and Alarm list
 - **Alarms** — one-shot or recurring by day of week; full-screen notification with **Dismiss** and **Snooze 10 min** actions; audio routed through the alarm stream (bypasses DND on Android); Dart Timer-based scheduler on Linux (no notification daemon required); Snooze re-fires via the same scheduler on both platforms
 - **Timer notifications** — background-safe: a `zonedSchedule` notification fires when the timer expires even if the app is backgrounded; in-app ✓ done indicator silences sound and dismisses; running/paused/done state persisted to `noctua_timers.json` and restored on next launch
 - **Sound selection** — per-platform ringtone catalogue: Android ringtones enumerated via `RingtoneManager`; Linux plays any `.oga`/`.wav` file from `/usr/share/sounds/freedesktop/stereo`; separate pickers for Alarm Sound and Timer Sound in Settings
@@ -58,14 +57,14 @@ lib/
       alarm_screen.dart
       alarm_edit_sheet.dart
       alarm_dismiss_sheet.dart   # Dismiss / Snooze 10 min bottom sheet
-      night_clock_screen.dart
     clock/
-      clock_screen.dart
+      clock_screen.dart          # moon toggle → night mode (dim overlay, no seconds/date)
       world_clock_screen.dart
     timer/
       timer_screen.dart
       stopwatch_screen.dart
     settings_panel.dart
+    colour_scheme_sheet.dart
   services/
     alarm_service.dart       # flutter_local_notifications v21 (Android); Dart Timer scheduler (Linux); dynamic channels keyed by sound URI; runtime permission requests
     ringtone_service.dart    # cross-platform sound catalogue; Android RingtoneManager via MethodChannel; Linux filesystem scan
@@ -73,6 +72,7 @@ lib/
   theme/
     color_schemes.dart       # schemeByName(); schemeFromHue() for hue:NNN keys
     fonts.dart
+    hue_slider.dart
   widgets/
     animated_background.dart # ValueNotifier<double> time; scoped repaints via ValueListenableBuilder
     settings_overlay.dart
@@ -80,11 +80,14 @@ lib/
     animations/
       lava_lamp_painter.dart
       raindrops_painter.dart
-      wave_painter.dart
-      pulse_painter.dart
+      bubbles_painter.dart   # GLSL fragment shader; rising spheres via FragmentProgram
+      breath_painter.dart    # organic morphing blob; 96 boundary points; quadratic Bézier path
+assets/
+  shaders/
+    bubbles.frag             # GLSL fragment shader — 3×3 neighbourhood lookup, seamless vertical loop
 test/
   config/
-    noctua_config_test.dart  # 45 unit tests: all model classes, migration, edge cases
+    noctua_config_test.dart  # 98 unit tests: all model classes, migration, per-animation params, edge cases
   data/
     emoji_shortcodes_test.dart  # 18 tests: shortcode resolution
 ```
