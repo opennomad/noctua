@@ -329,6 +329,7 @@ class _TimerScreenState extends State<TimerScreen>
     final result = await _showTimerSheet(context);
     if (result != null) {
       await widget.config_service.addSavedTimer(result);
+      _loadSaved(result); // activate the new timer immediately
     }
   }
 
