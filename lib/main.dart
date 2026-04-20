@@ -96,10 +96,11 @@ class _NoctuaHomeState extends State<NoctuaHome> {
     HardwareKeyboard.instance.addHandler(_onKey);
     _alarm_sub = AlarmService.events.listen(_onAlarmEvent);
     widget.config_service.addListener(_onConfigChanged);
-    // Request POST_NOTIFICATIONS and SCHEDULE_EXACT_ALARM after first frame
-    // so the system dialog has a window to attach to.
+    // After the first frame: request runtime permissions, then emit any alarm
+    // event stored from the notification that cold-launched the app.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       AlarmService.requestPermissions();
+      AlarmService.flushPendingLaunchEvent();
     });
   }
 
@@ -121,14 +122,20 @@ class _NoctuaHomeState extends State<NoctuaHome> {
 
   void _onAlarmEvent(AlarmEvent event) {
     if (!mounted) return;
-    if (event.type != AlarmEventType.tapped) return;
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isDismissible: false,
-      enableDrag: false,
-      builder: (_) => AlarmDismissSheet(label: event.label, notif_id: event.notif_id),
-    );
+    switch (event.type) {
+      case AlarmEventType.tapped:
+        showModalBottomSheet<void>(
+          context: context,
+          backgroundColor: Colors.transparent,
+          isDismissible: false,
+          enableDrag: false,
+          builder: (_) => AlarmDismissSheet(label: event.label, notif_id: event.notif_id),
+        );
+      case AlarmEventType.dismissed:
+        Navigator.of(context).maybePop();
+      case AlarmEventType.snoozed:
+        break;
+    }
   }
 
   // Builds a modifier-aware key label: e.g. 'Ctrl+w', 'Arrow Right'.

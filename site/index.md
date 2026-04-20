@@ -68,6 +68,14 @@ Lap recording with a fixed-width layout so digits never shift.
 
 </div>
 
+<div class="screen-card">
+
+### Settings
+![Settings panel](img/screenshot-settings.png)
+Animation style, speed, font, per-screen colour, time format, sound pickers, and keyboard bindings. Tap anywhere to reveal the gear icon.
+
+</div>
+
 </div>
 
 ---
@@ -136,16 +144,6 @@ Human-readable JSON at `~/.config/noctua/noctua_config.json` (Linux) or the app 
 
 ---
 
-## Screenshots
-
-![Settings panel placeholder](img/screenshot-settings.png)
-*Settings panel — animation, font, colour, sound, and time format*
-
-![Timer with presets placeholder](img/screenshot-timer-presets.png)
-*Timer screen with saved presets visible*
-
----
-
 ## Getting Started {#getting-started}
 
 ### Requirements
@@ -173,7 +171,7 @@ Connect a device or start an emulator, then:
 mise exec -- flutter run
 ```
 
-On first launch Noctua will request **notification** and **exact alarm** permissions. Both are required for alarms to fire reliably.
+On first launch Noctua will request **notification**, **exact alarm**, and **full-screen intent** permissions. All three are required for alarms to fire reliably and show on the lock screen.
 
 ---
 

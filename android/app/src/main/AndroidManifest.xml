@@ -6,6 +6,8 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <!-- Runtime notification permission (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Required for fullScreenIntent (alarm / timer popups on locked screen) -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
     <application
         android:label="noctua"

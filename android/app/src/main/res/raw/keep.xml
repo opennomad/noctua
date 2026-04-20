@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Prevent R8 resource shrinker from removing drawable resources that are
+     looked up dynamically at runtime (e.g. flutter_local_notifications). -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_notification,@drawable/ic_launcher" />

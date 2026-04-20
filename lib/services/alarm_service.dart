@@ -58,6 +58,7 @@ class AlarmService {
 
   static final _plugin = FlutterLocalNotificationsPlugin();
   static bool _ready = false;
+  static AlarmEvent? _pending_launch_event;
 
   // ── channel ID helpers ────────────────────────────────────────────────────
   //
@@ -66,12 +67,12 @@ class AlarmService {
   // Empty uri → 'default'; custom uri → base-36 hash suffix.
 
   static String _alarmChId(String uri) =>
-      uri.isEmpty ? 'noctua_alarm_default'
-                  : 'noctua_alarm_${uri.hashCode.toRadixString(36)}';
+      uri.isEmpty ? 'noctua_alarm_default_v2'
+                  : 'noctua_alarm_v2_${uri.hashCode.toRadixString(36)}';
 
   static String _timerChId(String uri) =>
-      uri.isEmpty ? 'noctua_timer_default'
-                  : 'noctua_timer_${uri.hashCode.toRadixString(36)}';
+      uri.isEmpty ? 'noctua_timer_default_v2'
+                  : 'noctua_timer_v2_${uri.hashCode.toRadixString(36)}';
 
   static final Set<String> _created_channels = {};
 
@@ -137,6 +138,26 @@ class AlarmService {
     await _ensureTimerChannel(_timer_sound);
 
     _ready = true;
+
+    // Check if the app was launched by tapping an alarm notification (app was
+    // dead when the alarm fired).  Store the event so callers can flush it
+    // after their event listener is wired up.
+    final launch = await _plugin.getNotificationAppLaunchDetails();
+    final response = launch?.notificationResponse;
+    if (response != null) {
+      final label = response.payload ?? '';
+      final id    = response.id ?? 0;
+      if (!label.startsWith('timer:')) {
+        _pending_launch_event = AlarmEvent.tapped(label, id);
+      }
+    }
+
+    // Reschedule every enabled alarm on startup — mirrors Linux behaviour.
+    // Ensures alarms survive app kills where AlarmManager may have lost them,
+    // and recovers from any silent scheduling failure on a previous run.
+    for (final alarm in alarms) {
+      if (alarm.enabled) await _schedule(alarm);
+    }
   }
 
   /// Request POST_NOTIFICATIONS (Android 13+) and SCHEDULE_EXACT_ALARM
@@ -157,6 +178,20 @@ class AlarmService {
     // when the permission is actually missing.
     final exact_ok = await impl.canScheduleExactNotifications() ?? true;
     if (!exact_ok) await impl.requestExactAlarmsPermission();
+
+    // USE_FULL_SCREEN_INTENT — granted by default on install but may be
+    // revoked on Android 14+.  Returns true immediately if already granted;
+    // opens system settings only if the permission is missing.
+    await impl.requestFullScreenIntentPermission();
+  }
+
+  /// Emit any alarm event that was stored from the notification that launched
+  /// the app.  Call this from the UI after the AlarmService.events listener
+  /// has been subscribed — typically in a post-frame callback in initState().
+  static void flushPendingLaunchEvent() {
+    final event = _pending_launch_event;
+    _pending_launch_event = null;
+    if (event != null) _event_ctrl.add(event);
   }
 
   /// Update stored sound URIs and lazily create any missing channels.
@@ -197,11 +232,12 @@ class AlarmService {
     await impl?.createNotificationChannel(AndroidNotificationChannel(
       id,
       'Timers',
-      description: 'Noctua timer alerts',
-      importance:  Importance.high,
-      playSound:   true,
-      enableVibration: true,
-      sound:       sound,
+      description:          'Noctua timer alerts',
+      importance:           Importance.max,
+      playSound:            true,
+      enableVibration:      true,
+      audioAttributesUsage: AudioAttributesUsage.alarm,
+      sound:                sound,
     ));
     _created_channels.add(id);
   }
@@ -217,9 +253,18 @@ class AlarmService {
         _event_ctrl.add(AlarmEvent.snoozed(label, id));
       case 'dismiss':
         _event_ctrl.add(AlarmEvent.dismissed(label, id));
+      case 'dismiss_timer':
+        // cancelNotification: true on the action already removed the notification;
+        // no additional cleanup needed.
+        _plugin.cancel(id: id);
       default:
-        // Bare notification tap — show in-app dismiss UI.
-        _event_ctrl.add(AlarmEvent.tapped(label, id));
+        if (label.startsWith('timer:')) {
+          // Timer notification tapped — cancel it; timer screen handles done state.
+          _plugin.cancel(id: id);
+        } else {
+          // Bare alarm tap — show in-app dismiss UI.
+          _event_ctrl.add(AlarmEvent.tapped(label, id));
+        }
     }
   }
 
@@ -237,7 +282,9 @@ class AlarmService {
 
   // ── public alarm API ──────────────────────────────────────────────────────
 
-  /// Cancel all pending notifications and reschedule every enabled alarm.
+  /// Cancel all alarm notifications then reschedule every enabled alarm.
+  /// Deliberately does NOT use cancelAll() so that running timer notifications
+  /// are not affected.
   static Future<void> syncAll(List<AlarmConfig> alarms) async {
     if (Platform.isLinux) {
       _cancelAllLinux();
@@ -247,7 +294,11 @@ class AlarmService {
       return;
     }
     if (!Platform.isAndroid) return;
-    await _plugin.cancelAll();
+    // Cancel the snooze slot plus every alarm individually.
+    await _plugin.cancel(id: snooze_nid);
+    for (final alarm in alarms) {
+      await _cancelAlarm(alarm);
+    }
     for (final alarm in alarms) {
       if (alarm.enabled) await _schedule(alarm);
     }
@@ -301,14 +352,16 @@ class AlarmService {
       String id, Duration remaining, String name) async {
     if (!Platform.isAndroid) return;
     await _plugin.cancel(id: _tnid(id));
-    final at = tz.TZDateTime.now(tz.local).add(remaining);
+    final at    = tz.TZDateTime.now(tz.local).add(remaining);
+    final title = name.isEmpty ? 'Timer done' : name;
     await _plugin.zonedSchedule(
       id:                  _tnid(id),
-      title:               name.isEmpty ? 'Timer done' : name,
+      title:               title,
       body:                'Your timer has finished',
       scheduledDate:       at,
       notificationDetails: _timerNotifDetails(),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.alarmClock,
+      payload:             'timer:$name',
     );
   }
 
@@ -329,11 +382,13 @@ class AlarmService {
   /// On Android: heads-up notification.  On Linux: system sound.
   static Future<void> notifyTimerDone(String name) async {
     if (Platform.isAndroid) {
+      final title = name.isEmpty ? 'Timer done' : name;
       await _plugin.show(
         id:                  _timer_done_nid,
-        title:               name.isEmpty ? 'Timer done' : name,
+        title:               title,
         body:                'Your timer has finished',
         notificationDetails: _timerNotifDetails(),
+        payload:             'timer:$name',
       );
     } else if (Platform.isLinux) {
       await _playLinuxSound(uri: _timer_sound);
@@ -360,7 +415,8 @@ class AlarmService {
         actions: const [
           AndroidNotificationAction(
             'dismiss', 'Dismiss',
-            cancelNotification: true,
+            cancelNotification:  true,
+            showsUserInterface:  true,
           ),
           AndroidNotificationAction(
             'snooze', 'Snooze 10m',
@@ -379,14 +435,25 @@ class AlarmService {
       android: AndroidNotificationDetails(
         ch_id,
         'Timers',
-        channelDescription: 'Noctua timer alerts',
-        importance:         Importance.high,
-        priority:           Priority.high,
-        playSound:          true,
-        enableVibration:    true,
-        autoCancel:         true,
-        timeoutAfter:       8000,
+        channelDescription:   'Noctua timer alerts',
+        importance:           Importance.max,
+        priority:             Priority.max,
+        fullScreenIntent:     true,
+        category:             AndroidNotificationCategory.alarm,
+        audioAttributesUsage: AudioAttributesUsage.alarm,
+        playSound:            true,
+        enableVibration:      true,
+        // ongoing prevents the alarm sound from stopping when the notification
+        // shade is pulled down (collapsing the heads-up popup).
+        ongoing:    true,
+        autoCancel: false,
         sound: sound.isEmpty ? null : UriAndroidNotificationSound(sound),
+        actions: const [
+          AndroidNotificationAction(
+            'dismiss_timer', 'Dismiss',
+            cancelNotification: true,
+          ),
+        ],
       ),
     );
   }

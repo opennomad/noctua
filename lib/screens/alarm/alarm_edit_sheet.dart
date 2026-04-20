@@ -154,8 +154,10 @@ class _AlarmEditSheetState extends State<_AlarmEditSheet> {
   }
 
   Future<void> _delete() async {
+    // Cancel the alarm's notification before removing it from config,
+    // since syncAll no longer uses cancelAll().
+    await AlarmService.cancel(widget.alarm!);
     await widget.svc.deleteAlarm(widget.alarm!.id);
-    await AlarmService.syncAll(widget.svc.config.alarms);
     if (mounted) Navigator.pop(context);
   }
 

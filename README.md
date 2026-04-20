@@ -25,13 +25,13 @@ Each screen has its own colour scheme, configurable in Settings.
 - **Font selection** — Default, Orbitron, Raleway, Oxanium, Mono, Exo 2
 - **Time format** — toggle between 24-hour and 12-hour (AM/PM); applies to Clock, World Clock, Alarm list, and the alarm time picker
 - **Alarms** — one-shot or recurring by day of week; emoji shortcode labels (`:bell: wake up`, `:fire: gym`); full-screen notification with **Dismiss** and **Snooze 10 min** actions; audio routed through the alarm stream (bypasses DND on Android); Dart Timer-based scheduler on Linux (no notification daemon required); Snooze re-fires via the same scheduler on both platforms
-- **Timer notifications** — background-safe: a `zonedSchedule` notification fires when the timer expires even if the app is backgrounded; in-app ✓ done indicator silences sound and dismisses; running/paused/done state persisted to `noctua_timers.json` and restored on next launch
+- **Timer notifications** — background-safe: fires via `alarmClock` schedule mode so it wakes the device reliably; full-screen heads-up notification with sound routed through the alarm audio stream; in-app ✓ done indicator silences sound and dismisses; tapping the notification from the lock screen opens the app without showing the alarm dismiss sheet; running/paused/done state persisted to `noctua_timers.json` and restored on next launch
 - **Sound selection** — per-platform ringtone catalogue: Android ringtones enumerated via `RingtoneManager`; Linux plays any `.oga`/`.wav` file from `/usr/share/sounds/freedesktop/stereo`; separate pickers for Alarm Sound and Timer Sound in Settings
 - **Saved timer presets** — auto-hiding edge pills (left / right / bottom); new preset activates immediately on save; 764-entry emoji shortcode map with inline autocomplete (type `:te` → chips appear for `:tea:`, `:telescope:`, …); works at any cursor position in the name
-- **Keyboard navigation** — arrow keys (configurable) cycle screens; disabled while text fields or modals are focused
+- **Keyboard navigation** — arrow keys cycle screens; configurable quit shortcut (default `Ctrl+W`); bindings are disabled while text fields or modals are focused; quit always works even with a modal open
 - **Settings overlay** — gear icon fades in on touch, auto-hides after 3 s; bottom-sheet with animation selector, density/speed/amplitude sliders, font picker, per-screen hue sliders, time format toggle, sound pickers, timer-pill edge, keyboard binding editor
 - **Config file** — human-readable JSON; `~/.config/noctua/noctua_config.json` on Linux, app documents directory on Android; `noctua_timers.json` in the same directory stores running timer state
-- **Android permissions** — `POST_NOTIFICATIONS` and `SCHEDULE_EXACT_ALARM` requested at first launch via `areNotificationsEnabled` / `canScheduleExactNotifications` guards; not re-prompted once granted
+- **Android permissions** — `POST_NOTIFICATIONS`, `SCHEDULE_EXACT_ALARM`, and `USE_FULL_SCREEN_INTENT` requested at first launch; each gated on its own availability check so the user is never re-prompted once granted
 
 ## Running
 
@@ -66,7 +66,7 @@ lib/
     settings_panel.dart
     colour_scheme_sheet.dart
   services/
-    alarm_service.dart       # flutter_local_notifications v21 (Android); Dart Timer scheduler (Linux); dynamic channels keyed by sound URI; runtime permission requests
+    alarm_service.dart       # flutter_local_notifications v21 (Android); Dart Timer scheduler (Linux); _v2 channels keyed by sound URI; runtime permissions (notifications, exact alarms, full-screen intent); cold-launch alarm tap handled via getNotificationAppLaunchDetails() + flushPendingLaunchEvent()
     ringtone_service.dart    # cross-platform sound catalogue; Android RingtoneManager via MethodChannel; Linux filesystem scan
     timer_persistence.dart   # TimerSession / TimerSnapshot; save on transitions; restore deadline_ms → remaining on launch
   theme/
