@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "build": "eleventy",
-    "start": "eleventy --serve"
+    "start": "eleventy --serve",
+    "publish": "rsync --delete -ravkz _site/ telluride:/srv/caddy/sites/noctua.opennomad.com/"
   },
   "devDependencies": {
     "@11ty/eleventy": "^3.0.0"
