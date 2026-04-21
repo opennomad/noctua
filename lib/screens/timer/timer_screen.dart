@@ -17,13 +17,12 @@ class _TState {
   Duration remaining;
   _TStatus status;
   bool done; // true when expired naturally (not reset)
+  int?
+  deadline_ms; // epoch ms when timer expires; set while running, null otherwise
 
-  _TState(this.total)
-      : remaining = total,
-        status    = _TStatus.idle,
-        done      = false;
+  _TState(this.total) : remaining = total, status = _TStatus.idle, done = false;
 
-  bool get is_idle    => status == _TStatus.idle;
+  bool get is_idle => status == _TStatus.idle;
   bool get is_running => status == _TStatus.running;
 }
 
@@ -38,7 +37,7 @@ class TimerScreen extends StatefulWidget {
 }
 
 class _TimerScreenState extends State<TimerScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   static const _scratch = '_scratch';
   static const _pill_delay = Duration(seconds: 3);
 
@@ -49,6 +48,8 @@ class _TimerScreenState extends State<TimerScreen>
   String _active_id = _scratch;
 
   Timer? _tick;
+  StreamSubscription<int>? _add_mins_sub;
+  StreamSubscription<AlarmEvent>? _alarm_sub;
 
   // scroll input for the scratch timer
   late FixedExtentScrollController _h_ctrl, _m_ctrl, _s_ctrl;
@@ -68,7 +69,10 @@ class _TimerScreenState extends State<TimerScreen>
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
+    WidgetsBinding.instance.addObserver(this);
     widget.config_service.addListener(_onConfig);
+    _add_mins_sub = AlarmService.addedMinutes.listen(_onAddedMinutes);
+    _alarm_sub = AlarmService.events.listen(_onAlarmEvent);
     _restoreSession();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _touchPills();
@@ -76,7 +80,43 @@ class _TimerScreenState extends State<TimerScreen>
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _checkExpiredOnResume();
+  }
+
+  /// Called on every app-resume.  Handles two cases:
+  ///   1. Timer already marked done (e.g. restored that way from disk).
+  ///   2. Timer was running when the app was backgrounded and its deadline has
+  ///      now passed (Flutter timers do not tick while the app is suspended).
+  void _checkExpiredOnResume() {
+    final s = _active;
+    if (s.done) {
+      // Already expired — play sound in case it isn't already playing.
+      AlarmService.cancelTimerEnd(
+        _active_id,
+      ).then((_) => AlarmService.notifyTimerDone(_timerName(_active_id)));
+      return;
+    }
+    if (!s.is_running || s.deadline_ms == null) return;
+    final now_ms = DateTime.now().millisecondsSinceEpoch;
+    if (now_ms < s.deadline_ms!) return; // still time left
+    setState(() {
+      s.remaining = Duration.zero;
+      s.status = _TStatus.idle;
+      s.done = true;
+      s.deadline_ms = null;
+    });
+    AlarmService.cancelTimerEnd(
+      _active_id,
+    ).then((_) => AlarmService.notifyTimerDone(_timerName(_active_id)));
+    _saveSession();
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _add_mins_sub?.cancel();
+    _alarm_sub?.cancel();
     _tick?.cancel();
     _pill_hide?.cancel();
     _h_ctrl.dispose();
@@ -88,6 +128,31 @@ class _TimerScreenState extends State<TimerScreen>
   }
 
   void _onConfig() => setState(() {});
+
+  /// Handles alarm events: specifically dismissed from the notification action.
+  void _onAlarmEvent(AlarmEvent event) {
+    if (!mounted) return;
+    if (event.type == AlarmEventType.dismissed && _active.done) {
+      _dismiss();
+    }
+  }
+
+  /// Called when the user taps "+Xm" on the timer notification.
+  /// The service has already been stopped and a new background alarm scheduled.
+  /// We restart the in-app countdown for the given number of minutes.
+  void _onAddedMinutes(int mins) {
+    final s = _active;
+    final new_remaining = Duration(minutes: mins);
+    setState(() {
+      s.remaining = new_remaining;
+      s.status = _TStatus.running;
+      s.done = false;
+      s.deadline_ms =
+          DateTime.now().millisecondsSinceEpoch + new_remaining.inMilliseconds;
+    });
+    _ensureTick();
+    _saveSession();
+  }
 
   // ── persistence ────────────────────────────────────────────────────────────
 
@@ -101,9 +166,9 @@ class _TimerScreenState extends State<TimerScreen>
 
     setState(() {
       _active_id = session.active_id;
-      _input_h   = session.input_h;
-      _input_m   = session.input_m;
-      _input_s   = session.input_s;
+      _input_h = session.input_h;
+      _input_m = session.input_m;
+      _input_s = session.input_s;
 
       for (final snap in session.timers) {
         final total = Duration(seconds: snap.total_seconds);
@@ -114,18 +179,19 @@ class _TimerScreenState extends State<TimerScreen>
             final remaining_ms = (snap.deadline_ms ?? now_ms) - now_ms;
             if (remaining_ms <= 0) {
               s.remaining = Duration.zero;
-              s.done      = true;
+              s.done = true;
             } else {
               s.remaining = Duration(milliseconds: remaining_ms);
-              s.status    = _TStatus.running;
+              s.deadline_ms = snap.deadline_ms;
+              s.status = _TStatus.running;
               has_running = true;
             }
           case 'paused':
             s.remaining = Duration(seconds: snap.remaining_s ?? 0);
-            s.status    = _TStatus.paused;
+            s.status = _TStatus.paused;
           case 'done':
             s.remaining = Duration.zero;
-            s.done      = true;
+            s.done = true;
         }
         _states[snap.id] = s;
       }
@@ -142,23 +208,39 @@ class _TimerScreenState extends State<TimerScreen>
     // Ensure the active saved timer has a state even when it was idle and
     // therefore not included in the snapshot list.
     if (_active_id != _scratch && !_states.containsKey(_active_id)) {
-      final saved = widget.config_service.config.saved_timers
-          .firstWhere((t) => t.id == _active_id,
-              orElse: () => const SavedTimer(id: '', name: '', seconds: 0));
+      final saved = widget.config_service.config.saved_timers.firstWhere(
+        (t) => t.id == _active_id,
+        orElse: () => const SavedTimer(id: '', name: '', seconds: 0),
+      );
       if (saved.id.isNotEmpty) {
-        setState(() => _states[_active_id] = _TState(Duration(seconds: saved.seconds)));
+        setState(
+          () => _states[_active_id] = _TState(Duration(seconds: saved.seconds)),
+        );
       } else {
         setState(() => _active_id = _scratch); // timer deleted between sessions
       }
     }
 
     if (has_running) _ensureTick();
+
+    // If the active timer expired while the app was backgrounded, play the
+    // alarm sound now.  didChangeAppLifecycleState covers the warm-resume path;
+    // this post-frame callback covers the cold-launch path (app started by
+    // TimerRaiseReceiver — no lifecycle transition fires in that case).
+    if (_active.done) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_active.done) return;
+        AlarmService.cancelTimerEnd(
+          _active_id,
+        ).then((_) => AlarmService.notifyTimerDone(_timerName(_active_id)));
+      });
+    }
   }
 
   /// Snapshot current non-idle state to disk.  Idle timers are omitted —
   /// they are reconstructed from SavedTimer config on next launch.
   void _saveSession() {
-    final now_ms    = DateTime.now().millisecondsSinceEpoch;
+    final now_ms = DateTime.now().millisecondsSinceEpoch;
     final snapshots = <TimerSnapshot>[];
 
     for (final entry in _states.entries) {
@@ -166,36 +248,44 @@ class _TimerScreenState extends State<TimerScreen>
       if (s.is_idle && !s.done) continue;
 
       if (s.is_running) {
-        snapshots.add(TimerSnapshot(
-          id:            entry.key,
-          total_seconds: s.total.inSeconds,
-          status:        'running',
-          deadline_ms:   now_ms + s.remaining.inMilliseconds,
-        ));
+        snapshots.add(
+          TimerSnapshot(
+            id: entry.key,
+            total_seconds: s.total.inSeconds,
+            status: 'running',
+            deadline_ms: now_ms + s.remaining.inMilliseconds,
+          ),
+        );
       } else if (s.status == _TStatus.paused) {
-        snapshots.add(TimerSnapshot(
-          id:            entry.key,
-          total_seconds: s.total.inSeconds,
-          status:        'paused',
-          remaining_s:   s.remaining.inSeconds,
-        ));
+        snapshots.add(
+          TimerSnapshot(
+            id: entry.key,
+            total_seconds: s.total.inSeconds,
+            status: 'paused',
+            remaining_s: s.remaining.inSeconds,
+          ),
+        );
       } else if (s.done) {
-        snapshots.add(TimerSnapshot(
-          id:            entry.key,
-          total_seconds: s.total.inSeconds,
-          status:        'done',
-          remaining_s:   0,
-        ));
+        snapshots.add(
+          TimerSnapshot(
+            id: entry.key,
+            total_seconds: s.total.inSeconds,
+            status: 'done',
+            remaining_s: 0,
+          ),
+        );
       }
     }
 
-    TimerPersistence.save(TimerSession(
-      active_id: _active_id,
-      input_h:   _input_h,
-      input_m:   _input_m,
-      input_s:   _input_s,
-      timers:    snapshots,
-    ));
+    TimerPersistence.save(
+      TimerSession(
+        active_id: _active_id,
+        input_h: _input_h,
+        input_m: _input_m,
+        input_s: _input_s,
+        timers: snapshots,
+      ),
+    );
   }
 
   // ── pill visibility ────────────────────────────────────────────────────────
@@ -221,8 +311,9 @@ class _TimerScreenState extends State<TimerScreen>
             any = true;
             if (s.remaining.inSeconds <= 1) {
               s.remaining = Duration.zero;
-              s.status    = _TStatus.idle;
-              s.done      = true;
+              s.status = _TStatus.idle;
+              s.done = true;
+              s.deadline_ms = null;
               expired.add(entry.key);
             } else {
               s.remaining -= const Duration(seconds: 1);
@@ -233,8 +324,9 @@ class _TimerScreenState extends State<TimerScreen>
       for (final id in expired) {
         // Cancel the background notification first, then play the done sound.
         // Sequential await prevents both firing at the same time.
-        AlarmService.cancelTimerEnd(id)
-            .then((_) => AlarmService.notifyTimerDone(_timerName(id)));
+        AlarmService.cancelTimerEnd(
+          id,
+        ).then((_) => AlarmService.notifyTimerDone(_timerName(id)));
       }
       if (expired.isNotEmpty) _saveSession();
       if (!any) {
@@ -247,17 +339,19 @@ class _TimerScreenState extends State<TimerScreen>
   String _timerName(String id) {
     if (id == _scratch) return '';
     return widget.config_service.config.saved_timers
-        .where((t) => t.id == id)
-        .firstOrNull
-        ?.name ?? '';
+            .where((t) => t.id == id)
+            .firstOrNull
+            ?.name ??
+        '';
   }
 
   void _loadSaved(SavedTimer saved) {
     _states.putIfAbsent(
-        saved.id, () => _TState(Duration(seconds: saved.seconds)));
+      saved.id,
+      () => _TState(Duration(seconds: saved.seconds)),
+    );
     // tapping the active pill deselects back to scratch
-    setState(
-        () => _active_id = _active_id == saved.id ? _scratch : saved.id);
+    setState(() => _active_id = _active_id == saved.id ? _scratch : saved.id);
     _saveSession(); // persist active_id so navigation away + back restores it
   }
 
@@ -266,31 +360,41 @@ class _TimerScreenState extends State<TimerScreen>
     if (s.is_idle && _active_id == _scratch) {
       final d = Duration(hours: _input_h, minutes: _input_m, seconds: _input_s);
       if (d == Duration.zero) return;
-      s.total     = d;
+      s.total = d;
       s.remaining = d;
     }
     if (s.remaining == Duration.zero) return;
     setState(() {
       s.status = _TStatus.running;
-      s.done   = false;
+      s.done = false;
+      s.deadline_ms =
+          DateTime.now().millisecondsSinceEpoch + s.remaining.inMilliseconds;
     });
-    AlarmService.scheduleTimerEnd(_active_id, s.remaining, _timerName(_active_id));
+    AlarmService.scheduleTimerEnd(
+      _active_id,
+      s.remaining,
+      _timerName(_active_id),
+    );
     _ensureTick();
     _saveSession();
   }
 
   void _pause() {
-    setState(() => _active.status = _TStatus.paused);
+    setState(() {
+      _active.status = _TStatus.paused;
+      _active.deadline_ms = null;
+    });
     AlarmService.cancelTimerEnd(_active_id);
     _saveSession();
   }
 
   void _reset() {
     setState(() {
-      final s     = _active;
+      final s = _active;
       s.remaining = s.total;
-      s.status    = _TStatus.idle;
-      s.done      = false;
+      s.status = _TStatus.idle;
+      s.done = false;
+      s.deadline_ms = null;
     });
     AlarmService.cancelTimerEnd(_active_id);
     _saveSession();
@@ -298,27 +402,35 @@ class _TimerScreenState extends State<TimerScreen>
 
   void _dismiss() {
     AlarmService.cancelTimerDone();
-    AlarmService.cancelTimerEnd(_active_id); // belt-and-suspenders: stop background notification too
+    AlarmService.cancelTimerEnd(_active_id); // belt-and-suspenders
     setState(() {
-      final s     = _active;
+      final s = _active;
       s.remaining = s.total;
-      s.status    = _TStatus.idle;
-      s.done      = false;
+      s.status = _TStatus.idle;
+      s.done = false;
+      s.deadline_ms = null;
     });
     _saveSession();
   }
 
   void _addMinute() {
     setState(() {
-      final s       = _active;
+      final s = _active;
       const one_min = Duration(minutes: 1);
-      s.remaining  += one_min;
-      s.total      += one_min;
+      s.remaining += one_min;
+      s.total += one_min;
+      if (s.deadline_ms != null) {
+        s.deadline_ms =
+            s.deadline_ms! + const Duration(minutes: 1).inMilliseconds;
+      }
     });
     // Update background notification if timer is still running.
     if (_active.is_running) {
       AlarmService.scheduleTimerEnd(
-          _active_id, _active.remaining, _timerName(_active_id));
+        _active_id,
+        _active.remaining,
+        _timerName(_active_id),
+      );
     }
     _saveSession();
   }
@@ -398,25 +510,18 @@ class _TimerScreenState extends State<TimerScreen>
     return Listener(
       behavior: HitTestBehavior.opaque,
       onPointerDown: (_) => _touchPills(),
-      child: SafeArea(
-        child: Stack(
-          children: [
-            _body(edge),
-            positioned,
-          ],
-        ),
-      ),
+      child: SafeArea(child: Stack(children: [_body(edge), positioned])),
     );
   }
 
   Widget _body(String edge) {
-    final s           = _active;
+    final s = _active;
     final show_picker = s.is_idle && !s.done && _active_id == _scratch;
-    final saved_name  = _active_id != _scratch
+    final saved_name = _active_id != _scratch
         ? widget.config_service.config.saved_timers
-            .where((t) => t.id == _active_id)
-            .firstOrNull
-            ?.name
+              .where((t) => t.id == _active_id)
+              .firstOrNull
+              ?.name
         : null;
 
     Widget main_display;
@@ -428,66 +533,68 @@ class _TimerScreenState extends State<TimerScreen>
       main_display = _displayText(s);
     }
 
-    return LayoutBuilder(builder: (context, constraints) {
-      final tight = constraints.maxHeight < 320;
-      return Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          if (saved_name != null) ...[
-            Text(
-              saved_name,
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w300,
-                letterSpacing: 2,
-                color: noctuaText(context).withAlpha(120),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final tight = constraints.maxHeight < 320;
+        return Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (saved_name != null) ...[
+              Text(
+                saved_name,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w300,
+                  letterSpacing: 2,
+                  color: noctuaText(context).withAlpha(120),
+                ),
               ),
-            ),
-            SizedBox(height: tight ? 4 : 10),
+              SizedBox(height: tight ? 4 : 10),
+            ],
+            main_display,
+            SizedBox(height: tight ? 16 : 48),
+            _controls(s),
+            if (edge == 'bottom') SizedBox(height: tight ? 40 : 80),
           ],
-          main_display,
-          SizedBox(height: tight ? 16 : 48),
-          _controls(s),
-          if (edge == 'bottom') SizedBox(height: tight ? 40 : 80),
-        ],
-      );
-    });
+        );
+      },
+    );
   }
 
   Widget _displayText(_TState s) => Text(
-        _fmt(s.remaining),
-        style: TextStyle(
-          fontSize: 72,
-          fontWeight: FontWeight.w100,
-          letterSpacing: 4,
-          color: noctuaText(context),
-          fontFeatures: [FontFeature.tabularFigures()],
-        ),
-      );
+    _fmt(s.remaining),
+    style: TextStyle(
+      fontSize: 72,
+      fontWeight: FontWeight.w100,
+      letterSpacing: 4,
+      color: noctuaText(context),
+      fontFeatures: [FontFeature.tabularFigures()],
+    ),
+  );
 
   Widget _doneDisplay() => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            '✓',
-            style: TextStyle(
-              fontSize: 80,
-              height: 1.0,
-              color: noctuaText(context).withAlpha(200),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'done',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w200,
-              letterSpacing: 6,
-              color: noctuaText(context).withAlpha(140),
-            ),
-          ),
-        ],
-      );
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(
+        '✓',
+        style: TextStyle(
+          fontSize: 80,
+          height: 1.0,
+          color: noctuaText(context).withAlpha(200),
+        ),
+      ),
+      const SizedBox(height: 10),
+      Text(
+        'done',
+        style: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w200,
+          letterSpacing: 6,
+          color: noctuaText(context).withAlpha(140),
+        ),
+      ),
+    ],
+  );
 
   // ── scroll picker ──────────────────────────────────────────────────────────
 
@@ -502,58 +609,57 @@ class _TimerScreenState extends State<TimerScreen>
       FixedExtentScrollController ctrl,
       int count,
       ValueChanged<int> cb,
-    ) =>
-        SizedBox(
-          width: 80,
-          height: picker_h,
-          child: ShaderMask(
-            shaderCallback: (rect) => LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.transparent,
-                noctuaText(context),
-                noctuaText(context),
-                Colors.transparent,
-              ],
-              stops: [0.0, 0.2, 0.8, 1.0],
-            ).createShader(rect),
-            blendMode: BlendMode.dstIn,
-            child: ListWheelScrollView.useDelegate(
-              controller: ctrl,
-              itemExtent: item_h,
-              physics: const FixedExtentScrollPhysics(),
-              onSelectedItemChanged: cb,
-              perspective: 0.003,
-              childDelegate: ListWheelChildBuilderDelegate(
-                childCount: count,
-                builder: (ctx, i) => Center(
-                  child: Text(
-                    i.toString().padLeft(2, '0'),
-                    style: TextStyle(
-                      fontSize: 44,
-                      fontWeight: FontWeight.w100,
-                      letterSpacing: 2,
-                      color: noctuaText(context),
-                    ),
-                  ),
+    ) => SizedBox(
+      width: 80,
+      height: picker_h,
+      child: ShaderMask(
+        shaderCallback: (rect) => LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.transparent,
+            noctuaText(context),
+            noctuaText(context),
+            Colors.transparent,
+          ],
+          stops: [0.0, 0.2, 0.8, 1.0],
+        ).createShader(rect),
+        blendMode: BlendMode.dstIn,
+        child: ListWheelScrollView.useDelegate(
+          controller: ctrl,
+          itemExtent: item_h,
+          physics: const FixedExtentScrollPhysics(),
+          onSelectedItemChanged: cb,
+          perspective: 0.003,
+          childDelegate: ListWheelChildBuilderDelegate(
+            childCount: count,
+            builder: (ctx, i) => Center(
+              child: Text(
+                i.toString().padLeft(2, '0'),
+                style: TextStyle(
+                  fontSize: 44,
+                  fontWeight: FontWeight.w100,
+                  letterSpacing: 2,
+                  color: noctuaText(context),
                 ),
               ),
             ),
           ),
-        );
+        ),
+      ),
+    );
 
     Widget sep() => Padding(
-          padding: EdgeInsets.only(bottom: 10),
-          child: Text(
-            ':',
-            style: TextStyle(
-              fontSize: 36,
-              fontWeight: FontWeight.w100,
-              color: noctuaText(context).withAlpha(138),
-            ),
-          ),
-        );
+      padding: EdgeInsets.only(bottom: 10),
+      child: Text(
+        ':',
+        style: TextStyle(
+          fontSize: 36,
+          fontWeight: FontWeight.w100,
+          color: noctuaText(context).withAlpha(138),
+        ),
+      ),
+    );
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -574,20 +680,22 @@ class _TimerScreenState extends State<TimerScreen>
 
     // Fixed-width flanking slots keep the centre button visually centred.
     Widget left_slot() => SizedBox(
-          width: 64,
-          child: (!s.done && !s.is_idle)
-              ? Center(
-                  child: _IconBtn(
-                      icon: Icons.refresh, onTap: _reset, size: 28))
-              : null,
-        );
+      width: 64,
+      child: (!s.done && !s.is_idle)
+          ? Center(
+              child: _IconBtn(icon: Icons.refresh, onTap: _reset, size: 28),
+            )
+          : null,
+    );
 
     Widget right_slot() => SizedBox(
-          width: 64,
-          child: (s.done || show_picker)
-              ? null
-              : Center(child: _PillBtn(label: '+1m', onTap: _addMinute)),
-        );
+      width: 64,
+      child: (s.done || show_picker)
+          ? null
+          : Center(
+              child: _PillBtn(label: '+1m', onTap: _addMinute),
+            ),
+    );
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -598,9 +706,7 @@ class _TimerScreenState extends State<TimerScreen>
           icon: s.done
               ? Icons.check
               : (s.is_running ? Icons.pause : Icons.play_arrow),
-          onTap: s.done
-              ? _dismiss
-              : (s.is_running ? _pause : _startOrResume),
+          onTap: s.done ? _dismiss : (s.is_running ? _pause : _startOrResume),
         ),
         const SizedBox(width: 16),
         right_slot(),
@@ -626,10 +732,7 @@ class _TimerScreenState extends State<TimerScreen>
         width: 96,
         child: ListView(
           padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
-          children: [
-            ...saved.map((t) => _vPill(t)),
-            _vAddPill(),
-          ],
+          children: [...saved.map((t) => _vPill(t)), _vAddPill()],
         ),
       );
     }
@@ -639,10 +742,7 @@ class _TimerScreenState extends State<TimerScreen>
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        children: [
-          ...saved.map((t) => _hPill(t)),
-          _hAddPill(),
-        ],
+        children: [...saved.map((t) => _hPill(t)), _hAddPill()],
       ),
     );
   }
@@ -650,17 +750,18 @@ class _TimerScreenState extends State<TimerScreen>
   // ── vertical pill (left / right edge) ────────────────────────────────────
 
   Widget _vPill(SavedTimer t) {
-    final state      = _states[t.id];
-    final is_active  = _active_id == t.id;
+    final state = _states[t.id];
+    final is_active = _active_id == t.id;
     final is_running = state?.is_running ?? false;
-    final is_live    = state != null && !state.is_idle;
+    final is_live = state != null && !state.is_idle;
 
-    final time_str = is_live
-        ? _fmt(state.remaining)
-        : _fmtSecs(t.seconds);
+    final time_str = is_live ? _fmt(state.remaining) : _fmtSecs(t.seconds);
 
     return GestureDetector(
-      onTap: () { _touchPills(); _loadSaved(t); },
+      onTap: () {
+        _touchPills();
+        _loadSaved(t);
+      },
       onLongPress: () => _editSaved(t),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -669,10 +770,12 @@ class _TimerScreenState extends State<TimerScreen>
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           color: noctuaText(context).withAlpha(
-              _pa(is_active ? (is_running ? 50 : 30) : (is_running ? 25 : 12))),
+            _pa(is_active ? (is_running ? 50 : 30) : (is_running ? 25 : 12)),
+          ),
           border: Border.all(
-            color: noctuaText(context)
-                .withAlpha(_pa(is_active ? 100 : (is_running ? 60 : 30))),
+            color: noctuaText(
+              context,
+            ).withAlpha(_pa(is_active ? 100 : (is_running ? 60 : 30))),
           ),
         ),
         child: Column(
@@ -686,8 +789,9 @@ class _TimerScreenState extends State<TimerScreen>
               style: TextStyle(
                 fontSize: 14,
                 height: 1.2,
-                color: noctuaText(context)
-                    .withAlpha(is_active ? 230 : (is_running ? 200 : 180)),
+                color: noctuaText(
+                  context,
+                ).withAlpha(is_active ? 230 : (is_running ? 200 : 180)),
               ),
             ),
             const SizedBox(height: 4),
@@ -697,8 +801,9 @@ class _TimerScreenState extends State<TimerScreen>
               style: TextStyle(
                 fontSize: 13,
                 letterSpacing: 0.5,
-                color: noctuaText(context)
-                    .withAlpha(is_active ? 200 : (is_running ? 170 : 140)),
+                color: noctuaText(
+                  context,
+                ).withAlpha(is_active ? 200 : (is_running ? 170 : 140)),
               ),
             ),
           ],
@@ -708,31 +813,41 @@ class _TimerScreenState extends State<TimerScreen>
   }
 
   Widget _vAddPill() => GestureDetector(
-        onTap: () { _touchPills(); _addSaved(); },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: noctuaText(context).withAlpha(_pa(30))),
-          ),
-          child: Icon(Icons.add, color: noctuaText(context).withAlpha(_pa(100)), size: 16),
-        ),
-      );
+    onTap: () {
+      _touchPills();
+      _addSaved();
+    },
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: noctuaText(context).withAlpha(_pa(30))),
+      ),
+      child: Icon(
+        Icons.add,
+        color: noctuaText(context).withAlpha(_pa(100)),
+        size: 16,
+      ),
+    ),
+  );
 
   // ── horizontal pill (bottom edge) ─────────────────────────────────────────
 
   Widget _hPill(SavedTimer t) {
-    final state      = _states[t.id];
-    final is_active  = _active_id == t.id;
+    final state = _states[t.id];
+    final is_active = _active_id == t.id;
     final is_running = state?.is_running ?? false;
-    final is_live    = state != null && !state.is_idle;
+    final is_live = state != null && !state.is_idle;
 
     final label = is_live
         ? '${t.name}  ${_fmt(state.remaining)}'
         : '${t.name}  ${_fmtSecs(t.seconds)}';
 
     return GestureDetector(
-      onTap: () { _touchPills(); _loadSaved(t); },
+      onTap: () {
+        _touchPills();
+        _loadSaved(t);
+      },
       onLongPress: () => _editSaved(t),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -741,18 +856,21 @@ class _TimerScreenState extends State<TimerScreen>
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           color: noctuaText(context).withAlpha(
-              _pa(is_active ? (is_running ? 50 : 30) : (is_running ? 25 : 12))),
+            _pa(is_active ? (is_running ? 50 : 30) : (is_running ? 25 : 12)),
+          ),
           border: Border.all(
-            color: noctuaText(context)
-                .withAlpha(_pa(is_active ? 100 : (is_running ? 60 : 30))),
+            color: noctuaText(
+              context,
+            ).withAlpha(_pa(is_active ? 100 : (is_running ? 60 : 30))),
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 15,
-            color: noctuaText(context)
-                .withAlpha(is_active ? 230 : (is_running ? 200 : 170)),
+            color: noctuaText(
+              context,
+            ).withAlpha(is_active ? 230 : (is_running ? 200 : 170)),
           ),
         ),
       ),
@@ -760,16 +878,23 @@ class _TimerScreenState extends State<TimerScreen>
   }
 
   Widget _hAddPill() => GestureDetector(
-        onTap: () { _touchPills(); _addSaved(); },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: noctuaText(context).withAlpha(_pa(30))),
-          ),
-          child: Icon(Icons.add, color: noctuaText(context).withAlpha(_pa(100)), size: 16),
-        ),
-      );
+    onTap: () {
+      _touchPills();
+      _addSaved();
+    },
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: noctuaText(context).withAlpha(_pa(30))),
+      ),
+      child: Icon(
+        Icons.add,
+        color: noctuaText(context).withAlpha(_pa(100)),
+        size: 16,
+      ),
+    ),
+  );
 }
 
 // ── saved-timer sheet ─────────────────────────────────────────────────────────
@@ -777,13 +902,12 @@ class _TimerScreenState extends State<TimerScreen>
 Future<SavedTimer?> _showTimerSheet(
   BuildContext context, {
   SavedTimer? timer,
-}) =>
-    showModalBottomSheet<SavedTimer>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _SavedTimerSheet(timer: timer),
-    );
+}) => showModalBottomSheet<SavedTimer>(
+  context: context,
+  isScrollControlled: true,
+  backgroundColor: Colors.transparent,
+  builder: (_) => _SavedTimerSheet(timer: timer),
+);
 
 class _SavedTimerSheet extends StatefulWidget {
   final SavedTimer? timer;
@@ -834,7 +958,7 @@ class _SavedTimerSheetState extends State<_SavedTimerSheet> {
     final cursor = _name_ctrl.selection.baseOffset;
     // Slice to cursor so the $ anchor finds a partial shortcode anywhere.
     final before = cursor >= 0 ? _name_ctrl.text.substring(0, cursor) : '';
-    final match  = _partial_re.firstMatch(before);
+    final match = _partial_re.firstMatch(before);
     if (match == null) {
       if (_suggestions.isNotEmpty) setState(() => _suggestions = const []);
       return;
@@ -848,17 +972,19 @@ class _SavedTimerSheetState extends State<_SavedTimerSheet> {
   }
 
   void _applySuggestion(String name) {
-    final text   = _name_ctrl.text;
+    final text = _name_ctrl.text;
     final cursor = _name_ctrl.selection.baseOffset;
     if (cursor < 0) return;
     final before = text.substring(0, cursor);
-    final match  = _partial_re.firstMatch(before);
+    final match = _partial_re.firstMatch(before);
     if (match == null) return;
     // Stitch: text before the ':partial' + ':name: ' + text after cursor
-    final new_text   = '${before.substring(0, match.start)}:$name: ${text.substring(cursor)}';
-    final new_cursor = match.start + name.length + 3; // len(':') + name + len(': ')
+    final new_text =
+        '${before.substring(0, match.start)}:$name: ${text.substring(cursor)}';
+    final new_cursor =
+        match.start + name.length + 3; // len(':') + name + len(': ')
     _name_ctrl.value = TextEditingValue(
-      text:      new_text,
+      text: new_text,
       selection: TextSelection.collapsed(offset: new_cursor),
     );
     setState(() => _suggestions = const []);
@@ -876,15 +1002,16 @@ class _SavedTimerSheetState extends State<_SavedTimerSheet> {
   }
 
   void _delete() => Navigator.pop(
-        context,
-        const SavedTimer(id: '__delete__', name: '', seconds: 0),
-      );
+    context,
+    const SavedTimer(id: '__delete__', name: '', seconds: 0),
+  );
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding:
-          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
         decoration: const BoxDecoration(
           color: Color(0xFF1A1A2E),
@@ -912,29 +1039,31 @@ class _SavedTimerSheetState extends State<_SavedTimerSheet> {
   }
 
   Widget _handle() => Center(
-        child: Container(
-          width: 40,
-          height: 4,
-          decoration: BoxDecoration(
-            color: noctuaText(context).withAlpha(61),
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-      );
+    child: Container(
+      width: 40,
+      height: 4,
+      decoration: BoxDecoration(
+        color: noctuaText(context).withAlpha(61),
+        borderRadius: BorderRadius.circular(2),
+      ),
+    ),
+  );
 
   Widget _nameField() => TextField(
-        controller: _name_ctrl,
-        style: TextStyle(color: noctuaText(context), fontSize: 20),
-        textAlign: TextAlign.center,
-        decoration: InputDecoration(
-          hintText: 'Name or emoji',
-          hintStyle: TextStyle(color: noctuaText(context).withAlpha(77)),
-          enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: noctuaText(context).withAlpha(61))),
-          focusedBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: noctuaText(context).withAlpha(138))),
-        ),
-      );
+    controller: _name_ctrl,
+    style: TextStyle(color: noctuaText(context), fontSize: 20),
+    textAlign: TextAlign.center,
+    decoration: InputDecoration(
+      hintText: 'Name or emoji',
+      hintStyle: TextStyle(color: noctuaText(context).withAlpha(77)),
+      enabledBorder: UnderlineInputBorder(
+        borderSide: BorderSide(color: noctuaText(context).withAlpha(61)),
+      ),
+      focusedBorder: UnderlineInputBorder(
+        borderSide: BorderSide(color: noctuaText(context).withAlpha(138)),
+      ),
+    ),
+  );
 
   // Shows autocomplete chips when typing a partial shortcode, otherwise the
   // static hint.  Fixed height so the layout doesn't jump between states.
@@ -943,10 +1072,10 @@ class _SavedTimerSheetState extends State<_SavedTimerSheet> {
     return SizedBox(
       height: 36,
       child: ListView.separated(
-        scrollDirection:    Axis.horizontal,
-        padding:            const EdgeInsets.symmetric(horizontal: 4),
-        itemCount:          _suggestions.length,
-        separatorBuilder:   (_, sep) => const SizedBox(width: 8),
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        itemCount: _suggestions.length,
+        separatorBuilder: (_, sep) => const SizedBox(width: 8),
         itemBuilder: (_, i) {
           final e = _suggestions[i];
           return GestureDetector(
@@ -954,15 +1083,12 @@ class _SavedTimerSheetState extends State<_SavedTimerSheet> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color:        noctuaText(context).withAlpha(25),
+                color: noctuaText(context).withAlpha(25),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Text(
                 '${e.value} ${e.key}',
-                style: TextStyle(
-                  color:    noctuaText(context),
-                  fontSize: 13,
-                ),
+                style: TextStyle(color: noctuaText(context), fontSize: 13),
               ),
             ),
           );
@@ -972,19 +1098,19 @@ class _SavedTimerSheetState extends State<_SavedTimerSheet> {
   }
 
   Widget _shortcodeHint() => SizedBox(
-        height: 36,
-        child: Center(
-          child: Text(
-            ':tea:  :coffee:  :pomodoro:  :workout:  :todo:  :focus:  …',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize:    11,
-              color:       noctuaText(context).withAlpha(60),
-              letterSpacing: 0.3,
-            ),
-          ),
+    height: 36,
+    child: Center(
+      child: Text(
+        ':tea:  :coffee:  :pomodoro:  :workout:  :todo:  :focus:  …',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 11,
+          color: noctuaText(context).withAlpha(60),
+          letterSpacing: 0.3,
         ),
-      );
+      ),
+    ),
+  );
 
   Widget _timePicker() {
     const item_h = 44.0;
@@ -994,57 +1120,56 @@ class _SavedTimerSheetState extends State<_SavedTimerSheet> {
       FixedExtentScrollController ctrl,
       int count,
       ValueChanged<int> cb,
-    ) =>
-        SizedBox(
-          width: 72,
-          height: picker_h,
-          child: ShaderMask(
-            shaderCallback: (rect) => LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.transparent,
-                noctuaText(context),
-                noctuaText(context),
-                Colors.transparent,
-              ],
-              stops: [0.0, 0.2, 0.8, 1.0],
-            ).createShader(rect),
-            blendMode: BlendMode.dstIn,
-            child: ListWheelScrollView.useDelegate(
-              controller: ctrl,
-              itemExtent: item_h,
-              physics: const FixedExtentScrollPhysics(),
-              onSelectedItemChanged: cb,
-              perspective: 0.003,
-              childDelegate: ListWheelChildBuilderDelegate(
-                childCount: count,
-                builder: (ctx, i) => Center(
-                  child: Text(
-                    i.toString().padLeft(2, '0'),
-                    style: TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.w100,
-                      color: noctuaText(context),
-                    ),
-                  ),
+    ) => SizedBox(
+      width: 72,
+      height: picker_h,
+      child: ShaderMask(
+        shaderCallback: (rect) => LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.transparent,
+            noctuaText(context),
+            noctuaText(context),
+            Colors.transparent,
+          ],
+          stops: [0.0, 0.2, 0.8, 1.0],
+        ).createShader(rect),
+        blendMode: BlendMode.dstIn,
+        child: ListWheelScrollView.useDelegate(
+          controller: ctrl,
+          itemExtent: item_h,
+          physics: const FixedExtentScrollPhysics(),
+          onSelectedItemChanged: cb,
+          perspective: 0.003,
+          childDelegate: ListWheelChildBuilderDelegate(
+            childCount: count,
+            builder: (ctx, i) => Center(
+              child: Text(
+                i.toString().padLeft(2, '0'),
+                style: TextStyle(
+                  fontSize: 36,
+                  fontWeight: FontWeight.w100,
+                  color: noctuaText(context),
                 ),
               ),
             ),
           ),
-        );
+        ),
+      ),
+    );
 
     Widget sep() => Padding(
-          padding: EdgeInsets.only(bottom: 8),
-          child: Text(
-            ':',
-            style: TextStyle(
-              fontSize: 30,
-              fontWeight: FontWeight.w100,
-              color: noctuaText(context).withAlpha(138),
-            ),
-          ),
-        );
+      padding: EdgeInsets.only(bottom: 8),
+      child: Text(
+        ':',
+        style: TextStyle(
+          fontSize: 30,
+          fontWeight: FontWeight.w100,
+          color: noctuaText(context).withAlpha(138),
+        ),
+      ),
+    );
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -1059,34 +1184,40 @@ class _SavedTimerSheetState extends State<_SavedTimerSheet> {
   }
 
   Widget _actions() => Row(
-        children: [
-          if (_is_edit)
-            IconButton(
-              icon: const Icon(Icons.delete_outline,
-                  color: Colors.redAccent, size: 22),
-              onPressed: _delete,
-              tooltip: 'Delete timer',
-            ),
-          const Spacer(),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel',
-                style: TextStyle(color: noctuaText(context).withAlpha(97))),
+    children: [
+      if (_is_edit)
+        IconButton(
+          icon: const Icon(
+            Icons.delete_outline,
+            color: Colors.redAccent,
+            size: 22,
           ),
-          const SizedBox(width: 8),
-          ElevatedButton(
-            onPressed: _save,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: noctuaText(context).withAlpha(61),
-              foregroundColor: noctuaText(context),
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            ),
-            child: Text(_is_edit ? 'Save' : 'Add'),
+          onPressed: _delete,
+          tooltip: 'Delete timer',
+        ),
+      const Spacer(),
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: Text(
+          'Cancel',
+          style: TextStyle(color: noctuaText(context).withAlpha(97)),
+        ),
+      ),
+      const SizedBox(width: 8),
+      ElevatedButton(
+        onPressed: _save,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: noctuaText(context).withAlpha(61),
+          foregroundColor: noctuaText(context),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
           ),
-        ],
-      );
+        ),
+        child: Text(_is_edit ? 'Save' : 'Add'),
+      ),
+    ],
+  );
 }
 
 // ── shared control widgets ────────────────────────────────────────────────────
@@ -1099,22 +1230,22 @@ class _PillBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: noctuaText(context).withAlpha(77)),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              color: noctuaText(context).withAlpha(178),
-            ),
-          ),
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: noctuaText(context).withAlpha(77)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 14,
+          color: noctuaText(context).withAlpha(178),
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class _IconBtn extends StatelessWidget {
@@ -1126,9 +1257,9 @@ class _IconBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-        onTap: onTap,
-        child: Icon(icon, color: noctuaText(context).withAlpha(178), size: size),
-      );
+    onTap: onTap,
+    child: Icon(icon, color: noctuaText(context).withAlpha(178), size: size),
+  );
 }
 
 class _BigBtn extends StatelessWidget {
@@ -1139,16 +1270,18 @@ class _BigBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 72,
-          height: 72,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border:
-                Border.all(color: noctuaText(context).withAlpha(102), width: 1.5),
-          ),
-          child: Icon(icon, color: noctuaText(context), size: 36),
+    onTap: onTap,
+    child: Container(
+      width: 72,
+      height: 72,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: noctuaText(context).withAlpha(102),
+          width: 1.5,
         ),
-      );
+      ),
+      child: Icon(icon, color: noctuaText(context), size: 36),
+    ),
+  );
 }
