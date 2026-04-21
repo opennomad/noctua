@@ -151,14 +151,14 @@ class _NoctuaHomeState extends State<NoctuaHome> with WidgetsBindingObserver {
     }
   }
 
-  // Builds a modifier-aware key label: e.g. 'Ctrl+w', 'Arrow Right'.
+  // Builds a modifier-aware key label: e.g. 'Ctrl+q', 'Arrow Right'.
   static String _buildKeyLabel(KeyEvent event) {
     final parts = <String>[];
     if (HardwareKeyboard.instance.isControlPressed) parts.add('Ctrl');
     if (HardwareKeyboard.instance.isAltPressed)     parts.add('Alt');
     if (HardwareKeyboard.instance.isShiftPressed)   parts.add('Shift');
     final base = event.logicalKey.keyLabel;
-    if (base.isNotEmpty) parts.add(base);
+    if (base.isNotEmpty) parts.add(base.toLowerCase());
     return parts.join('+');
   }
 

@@ -896,7 +896,7 @@ String _buildKeyLabel(KeyEvent event) {
   if (HardwareKeyboard.instance.isAltPressed)     parts.add('Alt');
   if (HardwareKeyboard.instance.isShiftPressed)   parts.add('Shift');
   final base = event.logicalKey.keyLabel;
-  if (base.isNotEmpty) parts.add(base);
+  if (base.isNotEmpty) parts.add(base.toLowerCase());
   return parts.join('+');
 }
 
