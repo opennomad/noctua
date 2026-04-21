@@ -7,6 +7,14 @@ java = "temurin-21"
 description = "run the app"
 run = "flutter test"
 
+[tasks.build-android]
+description = "build android APK"
+run = "flutter build apk --release"
+
+[tasks.clear-android]
+description = "uninstall on android"
+run = "adb uninstall com.opennomad.noctua"
+
 [tasks.linux]
 description = "run the app on linux"
 run = "flutter run -d linux"
