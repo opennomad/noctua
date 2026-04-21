@@ -216,6 +216,18 @@ class ConfigService extends ChangeNotifier {
     await save();
   }
 
+  Future<void> setAlarmSnoozeMinutes(int minutes) async {
+    _config = _config.copyWith(alarm_snooze_minutes: minutes);
+    notifyListeners();
+    await save();
+  }
+
+  Future<void> setTimerAddMinutes(int minutes) async {
+    _config = _config.copyWith(timer_add_minutes: minutes);
+    notifyListeners();
+    await save();
+  }
+
   Future<void> setAnimation(String animation) async {
     _config = _config.copyWith(animation: animation);
     notifyListeners();

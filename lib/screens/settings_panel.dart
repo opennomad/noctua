@@ -40,6 +40,8 @@ class _SettingsPanelState extends State<_SettingsPanel> {
   late String            _timer_sound;
   late String            _color_mode;
   late bool              _show_local_time;
+  late int               _snooze_mins;
+  late int               _add_mins;
   List<RingtoneEntry>    _ringtones = [];
   bool                   _ringtones_loading = false;
   String?                _previewing;
@@ -67,6 +69,8 @@ class _SettingsPanelState extends State<_SettingsPanel> {
     _timer_sound = cfg.timer_sound;
     _color_mode      = cfg.color_mode;
     _show_local_time = cfg.show_local_time;
+    _snooze_mins     = cfg.alarm_snooze_minutes;
+    _add_mins        = cfg.timer_add_minutes;
     _loadRingtones();
   }
 
@@ -178,6 +182,16 @@ class _SettingsPanelState extends State<_SettingsPanel> {
     widget.svc.setShowLocalTime(value);
   }
 
+  void _setSnoozeMinutes(int mins) {
+    setState(() => _snooze_mins = mins);
+    widget.svc.setAlarmSnoozeMinutes(mins);
+  }
+
+  void _setAddMinutes(int mins) {
+    setState(() => _add_mins = mins);
+    widget.svc.setTimerAddMinutes(mins);
+  }
+
   // ── build ──────────────────────────────────────────────────────────────────
 
   @override
@@ -245,9 +259,25 @@ class _SettingsPanelState extends State<_SettingsPanel> {
             const SizedBox(height: 10),
             _soundPicker(_alarm_sound, _setAlarmSound),
             const SizedBox(height: 20),
+            _sectionLabel('Snooze Duration'),
+            const SizedBox(height: 10),
+            _minuteChips(
+              values:   [1, 2, 5, 10, 15, 20, 30],
+              selected: _snooze_mins,
+              onTap:    _setSnoozeMinutes,
+            ),
+            const SizedBox(height: 20),
             _sectionLabel('Timer Sound'),
             const SizedBox(height: 10),
             _soundPicker(_timer_sound, _setTimerSound),
+            const SizedBox(height: 20),
+            _sectionLabel('Add Minutes'),
+            const SizedBox(height: 10),
+            _minuteChips(
+              values:   [1, 2, 3, 5, 10],
+              selected: _add_mins,
+              onTap:    _setAddMinutes,
+            ),
             const SizedBox(height: 20),
             _keyboardSection(),
             const SizedBox(height: 20),
@@ -572,6 +602,41 @@ class _SettingsPanelState extends State<_SettingsPanel> {
                       ),
                     ),
                   ],
+                ),
+              ),
+            ),
+        ],
+      );
+
+  /// Generic chip row for picking an integer value from [values].
+  Widget _minuteChips({
+    required List<int> values,
+    required int selected,
+    required ValueChanged<int> onTap,
+  }) =>
+      Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        children: [
+          for (final v in values)
+            GestureDetector(
+              onTap: () => onTap(v),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                decoration: BoxDecoration(
+                  color: selected == v ? Colors.white12 : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: selected == v ? Colors.white38 : Colors.white12,
+                  ),
+                ),
+                child: Text(
+                  '${v}m',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: selected == v ? Colors.white70 : Colors.white38,
+                  ),
                 ),
               ),
             ),

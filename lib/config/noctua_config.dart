@@ -328,6 +328,12 @@ class NoctuaConfig {
   /// Whether the clock screen is in night mode (dim overlay, no seconds/date).
   final bool night_mode;
 
+  /// How long the snooze notification action delays the next alarm ring (minutes).
+  final int alarm_snooze_minutes;
+
+  /// How many minutes the "+Xm" timer notification action adds to the timer.
+  final int timer_add_minutes;
+
   const NoctuaConfig({
     required this.screens,
     required this.animation,
@@ -343,11 +349,13 @@ class NoctuaConfig {
     this.timer_pill_edge = 'left',
     this.key_bindings  = const KeyBindings(),
     this.time_format   = '24h',
-    this.alarm_sound      = '',
-    this.timer_sound      = '',
-    this.color_mode       = 'dark',
-    this.show_local_time  = false,
-    this.night_mode       = false,
+    this.alarm_sound            = '',
+    this.timer_sound            = '',
+    this.color_mode             = 'dark',
+    this.show_local_time        = false,
+    this.night_mode             = false,
+    this.alarm_snooze_minutes   = 10,
+    this.timer_add_minutes      = 1,
   });
 
   static NoctuaConfig get defaults => const NoctuaConfig(
@@ -421,9 +429,11 @@ class NoctuaConfig {
       time_format:     json['time_format']     as String? ?? '24h',
       alarm_sound:     json['alarm_sound']     as String? ?? '',
       timer_sound:     json['timer_sound']     as String? ?? '',
-      color_mode:      json['color_mode']      as String? ?? 'dark',
-      show_local_time: json['show_local_time'] as bool?   ?? false,
-      night_mode:      json['night_mode']      as bool?   ?? false,
+      color_mode:            json['color_mode']            as String? ?? 'dark',
+      show_local_time:       json['show_local_time']       as bool?   ?? false,
+      night_mode:            json['night_mode']            as bool?   ?? false,
+      alarm_snooze_minutes:  (json['alarm_snooze_minutes'] as num?)?.toInt() ?? 10,
+      timer_add_minutes:     (json['timer_add_minutes']    as num?)?.toInt() ?? 1,
     );
   }
 
@@ -440,9 +450,11 @@ class NoctuaConfig {
         'time_format':      time_format,
         'alarm_sound':      alarm_sound,
         'timer_sound':      timer_sound,
-        'color_mode':       color_mode,
-        'show_local_time':  show_local_time,
-        'night_mode':       night_mode,
+        'color_mode':            color_mode,
+        'show_local_time':       show_local_time,
+        'night_mode':            night_mode,
+        'alarm_snooze_minutes':  alarm_snooze_minutes,
+        'timer_add_minutes':     timer_add_minutes,
       };
 
   NoctuaConfig copyWith({
@@ -461,22 +473,26 @@ class NoctuaConfig {
     String?            color_mode,
     bool?              show_local_time,
     bool?              night_mode,
+    int?               alarm_snooze_minutes,
+    int?               timer_add_minutes,
   }) =>
       NoctuaConfig(
-        screens:          screens          ?? this.screens,
-        animation:        animation        ?? this.animation,
-        animation_params_map: animation_params_map ?? this.animation_params_map,
-        font:             font             ?? this.font,
-        world_clocks:     world_clocks     ?? this.world_clocks,
-        alarms:           alarms           ?? this.alarms,
-        saved_timers:     saved_timers     ?? this.saved_timers,
-        timer_pill_edge:  timer_pill_edge  ?? this.timer_pill_edge,
-        key_bindings:     key_bindings     ?? this.key_bindings,
-        time_format:      time_format      ?? this.time_format,
-        alarm_sound:      alarm_sound      ?? this.alarm_sound,
-        timer_sound:      timer_sound      ?? this.timer_sound,
-        color_mode:       color_mode       ?? this.color_mode,
-        show_local_time:  show_local_time  ?? this.show_local_time,
-        night_mode:       night_mode       ?? this.night_mode,
+        screens:               screens               ?? this.screens,
+        animation:             animation             ?? this.animation,
+        animation_params_map:  animation_params_map  ?? this.animation_params_map,
+        font:                  font                  ?? this.font,
+        world_clocks:          world_clocks          ?? this.world_clocks,
+        alarms:                alarms                ?? this.alarms,
+        saved_timers:          saved_timers          ?? this.saved_timers,
+        timer_pill_edge:       timer_pill_edge       ?? this.timer_pill_edge,
+        key_bindings:          key_bindings          ?? this.key_bindings,
+        time_format:           time_format           ?? this.time_format,
+        alarm_sound:           alarm_sound           ?? this.alarm_sound,
+        timer_sound:           timer_sound           ?? this.timer_sound,
+        color_mode:            color_mode            ?? this.color_mode,
+        show_local_time:       show_local_time       ?? this.show_local_time,
+        night_mode:            night_mode            ?? this.night_mode,
+        alarm_snooze_minutes:  alarm_snooze_minutes  ?? this.alarm_snooze_minutes,
+        timer_add_minutes:     timer_add_minutes     ?? this.timer_add_minutes,
       );
 }

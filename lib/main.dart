@@ -37,9 +37,11 @@ void main() async {
   await config_service.load();
 
   await AlarmService.init(
-    alarm_sound: config_service.config.alarm_sound,
-    timer_sound: config_service.config.timer_sound,
-    alarms:      config_service.config.alarms,
+    alarm_sound:  config_service.config.alarm_sound,
+    timer_sound:  config_service.config.timer_sound,
+    snooze_mins:  config_service.config.alarm_snooze_minutes,
+    add_mins:     config_service.config.timer_add_minutes,
+    alarms:       config_service.config.alarms,
   );
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
@@ -86,7 +88,7 @@ class NoctuaHome extends StatefulWidget {
   State<NoctuaHome> createState() => _NoctuaHomeState();
 }
 
-class _NoctuaHomeState extends State<NoctuaHome> {
+class _NoctuaHomeState extends State<NoctuaHome> with WidgetsBindingObserver {
   final _stack_ctrl = StackNavController();
   StreamSubscription<AlarmEvent>? _alarm_sub;
 
@@ -96,19 +98,29 @@ class _NoctuaHomeState extends State<NoctuaHome> {
     HardwareKeyboard.instance.addHandler(_onKey);
     _alarm_sub = AlarmService.events.listen(_onAlarmEvent);
     widget.config_service.addListener(_onConfigChanged);
-    // After the first frame: request runtime permissions, then emit any alarm
-    // event stored from the notification that cold-launched the app.
+    WidgetsBinding.instance.addObserver(this);
+    // After the first frame: request runtime permissions, then check whether
+    // AlarmRingtoneService is currently ringing (covers both cold-launch and
+    // the case where the app was started by AlarmFireReceiver).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       AlarmService.requestPermissions();
-      AlarmService.flushPendingLaunchEvent();
+      AlarmService.checkRinging();
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // On every warm resume: check if an alarm is ringing and show dismiss sheet.
+    if (state == AppLifecycleState.resumed) AlarmService.checkRinging();
   }
 
   void _onConfigChanged() {
     final cfg = widget.config_service.config;
     AlarmService.updateSounds(
-      alarm: cfg.alarm_sound,
-      timer: cfg.timer_sound,
+      alarm:        cfg.alarm_sound,
+      timer:        cfg.timer_sound,
+      snooze_mins:  cfg.alarm_snooze_minutes,
+      add_mins:     cfg.timer_add_minutes,
     );
   }
 
@@ -117,6 +129,7 @@ class _NoctuaHomeState extends State<NoctuaHome> {
     HardwareKeyboard.instance.removeHandler(_onKey);
     _alarm_sub?.cancel();
     widget.config_service.removeListener(_onConfigChanged);
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 

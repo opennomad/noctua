@@ -13,7 +13,7 @@ mise exec -- flutter test              # must be clean before committing
 
 ```
 lib/
-  main.dart                  # App entry, NoctuaHome, SettingsOverlay wiring; AlarmService.flushPendingLaunchEvent() called in post-frame callback to show dismiss sheet when app cold-launched by tapping an alarm notification
+  main.dart                  # App entry, NoctuaHome with WidgetsBindingObserver; AlarmService.checkRinging() called in post-frame callback and on every AppLifecycleState.resumed to show the alarm-dismiss sheet when raised by AlarmFireReceiver
   config/
     noctua_config.dart       # AlarmConfig, ZoneConfig, AnimationParams, NoctuaConfig
     config_service.dart      # ChangeNotifier; load/save/mutate; setAnimationParamsLive for slider preview
@@ -32,7 +32,7 @@ lib/
     settings_panel.dart      # Bottom sheet: animation, params, font, time format, colour mode (dark/light/system), sound pickers, screen enable/reorder; header shows logo.svg + NOCTUA wordmark
     colour_scheme_sheet.dart # Per-screen hue pickers; Dark + Light sections; opened from settings_panel
   services/
-    alarm_service.dart       # flutter_local_notifications v21 (Android); Dart Timer scheduler (Linux); dynamic channels per sound URI (both alarm and timer channels use _v2 suffix); requestPermissions() checks areNotificationsEnabled/canScheduleExactNotifications/requestFullScreenIntentPermission; getNotificationAppLaunchDetails() stores pending event in _pending_launch_event; flushPendingLaunchEvent() emits it after event listener is wired up; timer notifications use Importance.max + fullScreenIntent + alarmClock mode + 'timer:' payload prefix to avoid triggering alarm dismiss sheet on tap
+    alarm_service.dart       # Android: AlarmManager.setAlarmClock() via noctua/alarms MethodChannel; flutter_local_notifications retained only for permission requests; flushPendingLaunchEvent() is a no-op (kept for call-site compat); checkRinging() queries AlarmRingtoneService.ringing_type via getRingingAlarm and emits AlarmEvent.tapped for alarms; notifyTimerDone() starts AlarmRingtoneService via startRingtone; stopRingtone() stops it; Linux: Dart Timer scheduler + paplay subprocess
     ringtone_service.dart    # RingtoneEntry; list() dispatches to Android MethodChannel or Linux filesystem scan; preview(uri)/stopPreview() — Android Ringtone API, Linux paplay subprocess
     timer_persistence.dart   # TimerSession + TimerSnapshot; save on start/pause/reset/dismiss/expire; restore via deadline_ms on launch
   theme/
@@ -62,9 +62,12 @@ assets/
 - Animations use a `Ticker` for monotonically increasing time — no hard reset loops
 - `Listener` (not `GestureDetector`) for vertical nav in ColumnPage — stays out of gesture arena
 - `Platform.isAndroid` / `Platform.isLinux` guards in AlarmService and RingtoneService
-- Android notification channels are keyed by sound URI hash; alarm channels: `noctua_alarm_default_v2` / `noctua_alarm_v2_<base36>`; timer channels: `noctua_timer_default_v2` / `noctua_timer_v2_<base36>`; `_v2` suffix forces recreation when channel properties changed (channels are immutable once created)
+- Android alarm stack: `AlarmManager.setAlarmClock()` fires `AlarmFireReceiver`; receiver starts `AlarmRingtoneService` (foreground service, MediaPlayer + crescendo, `USAGE_ALARM`) and calls `startActivity(MainActivity)` directly (setAlarmClock BroadcastReceiver is exempt from background-activity-start restrictions); `AlarmRingtoneService` posts a full-screen `CATEGORY_ALARM` ongoing notification; companion fields `ringing_type`/`ringing_name` are read by Flutter via `getRingingAlarm` MethodChannel call in `checkRinging()`
+- Android notification channel for ringing: `noctua_ringing_v1`, `IMPORTANCE_HIGH`, no channel sound (MediaPlayer handles it); `RINGING_NOTIF_ID = 77777`
 - `KeyBindings.quit` (default `'Ctrl+w'`) handled before modal/text-field guard in `_onKey`; `_buildKeyLabel()` prepends `Ctrl+`/`Alt+`/`Shift+` from `HardwareKeyboard.instance.isXxxPressed`; quit calls `exit(0)` on Linux, `SystemNavigator.pop()` on Android; `_isModifierKey()` prevents bare modifier presses from being captured as bindings
-- Timer notifications use `Importance.max`, `fullScreenIntent: true`, `AndroidScheduleMode.alarmClock`, and `payload: 'timer:$name'`; `_onForegroundNotifResponse` checks `label.startsWith('timer:')` to cancel notification without emitting `AlarmEvent.tapped` (avoids showing alarm dismiss sheet)
+- `notifyTimerDone()` on Android starts `AlarmRingtoneService` via `startRingtone` MethodChannel (instant-on, no crescendo, `type=timer`); `cancelTimerDone()` calls `stopRingtone`; user dismisses via the in-app ✓ button
+- Background timer expiry: `scheduleTimerEnd` schedules via `setAlarmClock`; `AlarmFireReceiver` starts `AlarmRingtoneService` + raises `MainActivity`; `_TState.deadline_ms` stores epoch-ms when running; `_checkExpiredOnResume()` compares wall clock on `AppLifecycleState.resumed` to handle timers that expired while Flutter was suspended; `_dismiss()` calls both `cancelTimerDone()` and `cancelTimerEnd(id)`
+- `syncAll()` cancels alarm notifications individually (not `cancelAll()`) so running timer notifications are not affected; `AlarmService.cancel(alarm)` must be called before `deleteAlarm()` in alarm_edit_sheet since `syncAll` no longer nukes everything
 - Linux alarm scheduling uses self-rescheduling Dart Timers (no notification daemon); `_linux_sound_proc` stores the `paplay` handle for cancellation; Linux snooze uses `_linux_snooze_timer` (same pattern)
 - `formatTime(h, m, fmt)` top-level helper in `noctua_config.dart` — used by Clock, WorldClock, AlarmScreen, and AlarmEditSheet (display + picker via `MediaQuery.alwaysUse24HourFormat`)
 - `NoctuaSchemeScope` InheritedWidget injected by `StackNav._scopedScreen(slot)` — wraps each screen with its resolved scheme; `noctuaText(ctx)` reads text colour (falls back to white in modal sheets)

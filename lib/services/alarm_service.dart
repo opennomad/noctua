@@ -1,41 +1,8 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/data/latest.dart' as tz_data;
-import 'package:timezone/timezone.dart' as tz;
 import '../config/noctua_config.dart';
-
-// ── background snooze handler ──────────────────────────────────────────────────
-//
-// Must be a top-level function — flutter_local_notifications runs it in a
-// separate isolate when the user taps "Snooze" while the app is backgrounded.
-
-@pragma('vm:entry-point')
-void _onBackgroundNotifResponse(NotificationResponse response) async {
-  if (response.actionId != 'snooze') return;
-
-  // Each isolate has its own memory; re-initialise what we need.
-  tz_data.initializeTimeZones();
-  final plugin = FlutterLocalNotificationsPlugin();
-  await plugin.initialize(
-    settings: const InitializationSettings(
-      android: AndroidInitializationSettings('ic_launcher'),
-    ),
-  );
-
-  final label = response.payload ?? '';
-  final at    = tz.TZDateTime.now(tz.UTC).add(const Duration(minutes: 10));
-
-  await plugin.zonedSchedule(
-    id:                  AlarmService.snooze_nid,
-    title:               label.isEmpty ? 'Alarm' : label,
-    body:                'Snoozed — 10 minutes',
-    scheduledDate:       at,
-    notificationDetails: AlarmService.alarmNotifDetails(),
-    androidScheduleMode: AndroidScheduleMode.alarmClock,
-    payload:             label,
-  );
-}
 
 // ── AlarmEvent ────────────────────────────────────────────────────────────────
 
@@ -44,7 +11,7 @@ enum AlarmEventType { tapped, dismissed, snoozed }
 class AlarmEvent {
   final AlarmEventType type;
   final String label;
-  final int notif_id; // notification ID to cancel when dismissing in-app
+  final int notif_id;
   const AlarmEvent._(this.type, this.label, this.notif_id);
   factory AlarmEvent.tapped(String l, int id)    => AlarmEvent._(AlarmEventType.tapped,    l, id);
   factory AlarmEvent.dismissed(String l, int id) => AlarmEvent._(AlarmEventType.dismissed, l, id);
@@ -56,235 +23,170 @@ class AlarmEvent {
 class AlarmService {
   AlarmService._();
 
+  // ── channels ─────────────────────────────────────────────────────────────
+  // noctua/alarms  : scheduling + ringtone service control (Android)
+  // noctua/ringtones: ringtone listing + settings-panel preview
+
+  static const _alarm_ch = MethodChannel('noctua/alarms');
+
+  // flutter_local_notifications — only used for Android permission requests.
   static final _plugin = FlutterLocalNotificationsPlugin();
   static bool _ready = false;
-  static AlarmEvent? _pending_launch_event;
 
-  // ── channel ID helpers ────────────────────────────────────────────────────
-  //
-  // Android notification channels are immutable once created.  We encode the
-  // sound URI into the channel ID so each distinct sound gets its own channel.
-  // Empty uri → 'default'; custom uri → base-36 hash suffix.
+  // ── well-known notification / request IDs ─────────────────────────────────
 
-  static String _alarmChId(String uri) =>
-      uri.isEmpty ? 'noctua_alarm_default_v2'
-                  : 'noctua_alarm_v2_${uri.hashCode.toRadixString(36)}';
+  static const snooze_nid        = 88888;
+  static const _ringing_notif_id = 77777; // AlarmRingtoneService.RINGING_NOTIF_ID
 
-  static String _timerChId(String uri) =>
-      uri.isEmpty ? 'noctua_timer_default_v2'
-                  : 'noctua_timer_v2_${uri.hashCode.toRadixString(36)}';
-
-  static final Set<String> _created_channels = {};
-
-  // Current sound URIs — kept in sync via [updateSounds].
-  static String _alarm_sound = '';
-  static String _timer_sound = '';
-
-  // ── well-known notification IDs ───────────────────────────────────────────
-  static const snooze_nid     = 88888; // used by background handler too
-  static const _timer_done_nid = 89999;
-
-  // ── notification ID helpers ───────────────────────────────────────────────
-
-  // Alarm: alarm_id × 10 + slot (slots 0–6 = weekdays, 7 = one-shot).
+  // Alarm: alarm_id × 10 + slot (0–6 = weekday, 7 = one-shot).
   static int _anid(String alarm_id, int slot) =>
       (int.tryParse(alarm_id) ?? 0) * 10 + slot;
 
-  // Timer background: 50000 + timer_id (0 for scratch timer).
+  // Timer: 50000 + timer_id (0 for scratch timer).
   static int _tnid(String timer_id) =>
       50000 + (timer_id == '_scratch' ? 0 : (int.tryParse(timer_id) ?? 0));
 
-  // ── event stream (alarm notifications → UI) ───────────────────────────────
+  // ── event stream ──────────────────────────────────────────────────────────
+
   static final _event_ctrl = StreamController<AlarmEvent>.broadcast();
   static Stream<AlarmEvent> get events => _event_ctrl.stream;
 
+  // ── added-minutes stream (emitted when user taps +Xm on timer notification)
+
+  static final _added_minutes_ctrl = StreamController<int>.broadcast();
+  static Stream<int> get addedMinutes => _added_minutes_ctrl.stream;
+
+  // ── current sound URIs + alert settings ──────────────────────────────────
+
+  static String _alarm_sound   = '';
+  static String _timer_sound   = '';
+  static int    _snooze_mins   = 10;
+  static int    _add_mins      = 1;
+
   // ── lifecycle ─────────────────────────────────────────────────────────────
 
-  /// Call once at startup, and again after the user changes sound settings.
   static Future<void> init({
-    String alarm_sound = '',
-    String timer_sound = '',
+    String alarm_sound  = '',
+    String timer_sound  = '',
+    int    snooze_mins  = 10,
+    int    add_mins     = 1,
     List<AlarmConfig> alarms = const [],
   }) async {
     _alarm_sound = alarm_sound;
     _timer_sound = timer_sound;
+    _snooze_mins = snooze_mins;
+    _add_mins    = add_mins;
+
     if (Platform.isLinux) {
-      // Restore Dart timers for every enabled alarm on startup.
       _cancelAllLinux();
       for (final alarm in alarms) {
         if (alarm.enabled) _scheduleLinux(alarm);
       }
       return;
     }
+
     if (!Platform.isAndroid) return;
-    if (_ready) {
-      // Already initialised — just ensure channels for the current sounds.
-      await _ensureAlarmChannel(_alarm_sound);
-      await _ensureTimerChannel(_timer_sound);
-      return;
-    }
 
-    const android_settings = AndroidInitializationSettings('ic_launcher');
+    // Register handler for native→Flutter pushes (notification button taps
+    // received while the app is in foreground trigger onNewIntent → invokeMethod).
+    _alarm_ch.setMethodCallHandler((call) async {
+      switch (call.method) {
+        case 'onDismissed':
+          _event_ctrl.add(AlarmEvent.dismissed('', 0));
+        case 'onSnoozed':
+          _event_ctrl.add(AlarmEvent.snoozed('', 0));
+        case 'onAddedMinutes':
+          final mins = (call.arguments as int?) ?? _add_mins;
+          _added_minutes_ctrl.add(mins);
+      }
+    });
+
+    if (_ready) return;
+
+    // Initialise FLN solely for its permission-request helpers.
     await _plugin.initialize(
-      settings: const InitializationSettings(android: android_settings),
-      onDidReceiveNotificationResponse: _onForegroundNotifResponse,
-      onDidReceiveBackgroundNotificationResponse: _onBackgroundNotifResponse,
+      settings: const InitializationSettings(
+        android: AndroidInitializationSettings('ic_launcher'),
+      ),
     );
-
-    // Create default channels + the currently selected ones.
-    await _ensureAlarmChannel('');
-    await _ensureAlarmChannel(_alarm_sound);
-    await _ensureTimerChannel('');
-    await _ensureTimerChannel(_timer_sound);
-
     _ready = true;
 
-    // Check if the app was launched by tapping an alarm notification (app was
-    // dead when the alarm fired).  Store the event so callers can flush it
-    // after their event listener is wired up.
-    final launch = await _plugin.getNotificationAppLaunchDetails();
-    final response = launch?.notificationResponse;
-    if (response != null) {
-      final label = response.payload ?? '';
-      final id    = response.id ?? 0;
-      if (!label.startsWith('timer:')) {
-        _pending_launch_event = AlarmEvent.tapped(label, id);
-      }
-    }
-
-    // Reschedule every enabled alarm on startup — mirrors Linux behaviour.
-    // Ensures alarms survive app kills where AlarmManager may have lost them,
-    // and recovers from any silent scheduling failure on a previous run.
+    // Reschedule every enabled alarm on startup — ensures alarms survive
+    // app kills and AlarmManager purges after device reboot.
     for (final alarm in alarms) {
-      if (alarm.enabled) await _schedule(alarm);
+      if (alarm.enabled) await _scheduleAndroid(alarm);
     }
   }
 
-  /// Request POST_NOTIFICATIONS (Android 13+) and SCHEDULE_EXACT_ALARM
-  /// (Android 14+) only when not already granted.  Must be called after the
-  /// first frame so the system dialog has a window to attach to.
-  /// No-op on non-Android platforms.
   static Future<void> requestPermissions() async {
     if (!Platform.isAndroid) return;
     final impl = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     if (impl == null) return;
 
-    // POST_NOTIFICATIONS — shows an in-app dialog; only ask once.
     final notifs_ok = await impl.areNotificationsEnabled() ?? false;
     if (!notifs_ok) await impl.requestNotificationsPermission();
 
-    // SCHEDULE_EXACT_ALARM — sends the user to system settings; only ask
-    // when the permission is actually missing.
     final exact_ok = await impl.canScheduleExactNotifications() ?? true;
     if (!exact_ok) await impl.requestExactAlarmsPermission();
-
-    // USE_FULL_SCREEN_INTENT — granted by default on install but may be
-    // revoked on Android 14+.  Returns true immediately if already granted;
-    // opens system settings only if the permission is missing.
-    await impl.requestFullScreenIntentPermission();
   }
 
-  /// Emit any alarm event that was stored from the notification that launched
-  /// the app.  Call this from the UI after the AlarmService.events listener
-  /// has been subscribed — typically in a post-frame callback in initState().
-  static void flushPendingLaunchEvent() {
-    final event = _pending_launch_event;
-    _pending_launch_event = null;
-    if (event != null) _event_ctrl.add(event);
-  }
-
-  /// Update stored sound URIs and lazily create any missing channels.
-  static Future<void> updateSounds(
-      {required String alarm, required String timer}) async {
+  static Future<void> updateSounds({
+    required String alarm,
+    required String timer,
+    int snooze_mins = 10,
+    int add_mins    = 1,
+  }) async {
     _alarm_sound = alarm;
     _timer_sound = timer;
+    _snooze_mins = snooze_mins;
+    _add_mins    = add_mins;
+  }
+
+  /// No-op — retained for call-site compatibility; replaced by [checkRinging].
+  static void flushPendingLaunchEvent() {}
+
+  /// Check whether AlarmRingtoneService is currently ringing and, if so, emit
+  /// an [AlarmEvent.tapped] so the UI can show the alarm-dismiss sheet.
+  /// Also polls for any pending action set by a notification button tap while
+  /// the app was not in foreground (cold-start / warm-resume paths).
+  /// Call this after the first frame and on every app-resume.
+  static Future<void> checkRinging() async {
     if (!Platform.isAndroid) return;
-    await _ensureAlarmChannel(alarm);
-    await _ensureTimerChannel(timer);
-  }
-
-  static Future<void> _ensureAlarmChannel(String uri) async {
-    final id = _alarmChId(uri);
-    if (_created_channels.contains(id)) return;
-    final impl = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
-    final sound = uri.isEmpty ? null : UriAndroidNotificationSound(uri);
-    await impl?.createNotificationChannel(AndroidNotificationChannel(
-      id,
-      'Alarms',
-      description:          'Noctua alarm notifications',
-      importance:           Importance.max,
-      playSound:            true,
-      enableVibration:      true,
-      audioAttributesUsage: AudioAttributesUsage.alarm,
-      sound:                sound,
-    ));
-    _created_channels.add(id);
-  }
-
-  static Future<void> _ensureTimerChannel(String uri) async {
-    final id = _timerChId(uri);
-    if (_created_channels.contains(id)) return;
-    final impl = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
-    final sound = uri.isEmpty ? null : UriAndroidNotificationSound(uri);
-    await impl?.createNotificationChannel(AndroidNotificationChannel(
-      id,
-      'Timers',
-      description:          'Noctua timer alerts',
-      importance:           Importance.max,
-      playSound:            true,
-      enableVibration:      true,
-      audioAttributesUsage: AudioAttributesUsage.alarm,
-      sound:                sound,
-    ));
-    _created_channels.add(id);
-  }
-
-  // ── foreground notification response ─────────────────────────────────────
-
-  static void _onForegroundNotifResponse(NotificationResponse r) {
-    final label = r.payload ?? '';
-    final id    = r.id ?? 0;
-    switch (r.actionId) {
-      case 'snooze':
-        scheduleSnooze(label);
-        _event_ctrl.add(AlarmEvent.snoozed(label, id));
-      case 'dismiss':
-        _event_ctrl.add(AlarmEvent.dismissed(label, id));
-      case 'dismiss_timer':
-        // cancelNotification: true on the action already removed the notification;
-        // no additional cleanup needed.
-        _plugin.cancel(id: id);
-      default:
-        if (label.startsWith('timer:')) {
-          // Timer notification tapped — cancel it; timer screen handles done state.
-          _plugin.cancel(id: id);
-        } else {
-          // Bare alarm tap — show in-app dismiss UI.
-          _event_ctrl.add(AlarmEvent.tapped(label, id));
+    try {
+      // Poll for an action set by AlarmActionReceiver (notification button).
+      // Returns e.g. "dismissed", "snoozed", "added_minutes:1", or null.
+      final pending = await _alarm_ch.invokeMethod<String?>('getPendingAction');
+      if (pending != null && pending.isNotEmpty) {
+        if (pending == 'dismissed') {
+          _event_ctrl.add(AlarmEvent.dismissed('', 0));
+          return;
         }
-    }
+        if (pending == 'snoozed') {
+          _event_ctrl.add(AlarmEvent.snoozed('', 0));
+          return;
+        }
+        if (pending.startsWith('added_minutes:')) {
+          final mins = int.tryParse(pending.split(':')[1]) ?? _add_mins;
+          _added_minutes_ctrl.add(mins);
+          return;
+        }
+      }
+
+      final info = await _alarm_ch.invokeMethod<Map>('getRingingAlarm');
+      if (info == null) return;
+      final type = (info['type'] as String?) ?? '';
+      final name = (info['name'] as String?) ?? '';
+      // Timer fires are handled by the timer screen via didChangeAppLifecycleState.
+      if (type == 'alarm') {
+        _event_ctrl.add(AlarmEvent.tapped(name, _ringing_notif_id));
+      }
+    } catch (_) {}
   }
 
-  /// Cancel a specific alarm notification by its notification ID.
-  static Future<void> cancelAlarmNotif(int notif_id) async {
-    if (Platform.isLinux) {
-      _linux_snooze_timer?.cancel();
-      _linux_snooze_timer = null;
-      _stopLinuxSound();
-      return;
-    }
-    if (!Platform.isAndroid) return;
-    await _plugin.cancel(id: notif_id);
-  }
-
-  // ── public alarm API ──────────────────────────────────────────────────────
+  // ── alarm API ─────────────────────────────────────────────────────────────
 
   /// Cancel all alarm notifications then reschedule every enabled alarm.
-  /// Deliberately does NOT use cancelAll() so that running timer notifications
-  /// are not affected.
   static Future<void> syncAll(List<AlarmConfig> alarms) async {
     if (Platform.isLinux) {
       _cancelAllLinux();
@@ -294,37 +196,37 @@ class AlarmService {
       return;
     }
     if (!Platform.isAndroid) return;
-    // Cancel the snooze slot plus every alarm individually.
-    await _plugin.cancel(id: snooze_nid);
+    await _cancelAndroid(snooze_nid);
     for (final alarm in alarms) {
-      await _cancelAlarm(alarm);
+      await _cancelAlarmAndroid(alarm);
     }
     for (final alarm in alarms) {
-      if (alarm.enabled) await _schedule(alarm);
+      if (alarm.enabled) await _scheduleAndroid(alarm);
     }
   }
 
-  /// Schedule (or reschedule) a single alarm.
   static Future<void> schedule(AlarmConfig alarm) async {
     if (Platform.isLinux) { _scheduleLinux(alarm); return; }
     if (!Platform.isAndroid) return;
-    await _cancelAlarm(alarm);
-    if (alarm.enabled) await _schedule(alarm);
+    await _cancelAlarmAndroid(alarm);
+    if (alarm.enabled) await _scheduleAndroid(alarm);
   }
 
-  /// Cancel all notifications for a single alarm.
   static Future<void> cancel(AlarmConfig alarm) async {
     if (Platform.isLinux) { _cancelLinux(alarm.id); return; }
     if (!Platform.isAndroid) return;
-    await _cancelAlarm(alarm);
+    await _cancelAlarmAndroid(alarm);
   }
 
-  /// Schedule a snooze notification for 10 minutes from now.
+  /// Stop the ringtone service (silences the alarm).
+  static Future<void> cancelAlarmNotif(int notif_id) async =>
+      stopRingtone();
+
   static Future<void> scheduleSnooze(String label) async {
     if (Platform.isLinux) {
       _linux_snooze_timer?.cancel();
       final display = label.isEmpty ? 'Alarm' : label;
-      _linux_snooze_timer = Timer(const Duration(minutes: 10), () {
+      _linux_snooze_timer = Timer(Duration(minutes: _snooze_mins), () {
         _linux_snooze_timer = null;
         _playLinuxSound(uri: _alarm_sound);
         _event_ctrl.add(AlarmEvent.tapped(display, 0));
@@ -332,190 +234,171 @@ class AlarmService {
       return;
     }
     if (!Platform.isAndroid) return;
-    final at = tz.TZDateTime.now(tz.local).add(const Duration(minutes: 10));
-    await _plugin.zonedSchedule(
-      id:                  snooze_nid,
-      title:               label.isEmpty ? 'Alarm' : label,
-      body:                'Snoozed — 10 minutes',
-      scheduledDate:       at,
-      notificationDetails: alarmNotifDetails(),
-      androidScheduleMode: AndroidScheduleMode.alarmClock,
-      payload:             label,
+    final at = DateTime.now().add(Duration(minutes: _snooze_mins));
+    await _scheduleNative(
+      req_code:       snooze_nid,
+      epoch_ms:       at.millisecondsSinceEpoch,
+      sound_uri:      _alarm_sound,
+      name:           label.isEmpty ? 'Alarm' : label,
+      type:           'alarm',
+      crescendo_secs: 30,
+      snooze_mins:    _snooze_mins,
+      add_mins:       _add_mins,
     );
   }
 
-  // ── public timer API ──────────────────────────────────────────────────────
+  // ── timer API ─────────────────────────────────────────────────────────────
 
-  /// Schedule a background notification to fire when the timer expires.
-  /// Call this whenever a timer starts or resumes.
   static Future<void> scheduleTimerEnd(
       String id, Duration remaining, String name) async {
     if (!Platform.isAndroid) return;
-    await _plugin.cancel(id: _tnid(id));
-    final at    = tz.TZDateTime.now(tz.local).add(remaining);
-    final title = name.isEmpty ? 'Timer done' : name;
-    await _plugin.zonedSchedule(
-      id:                  _tnid(id),
-      title:               title,
-      body:                'Your timer has finished',
-      scheduledDate:       at,
-      notificationDetails: _timerNotifDetails(),
-      androidScheduleMode: AndroidScheduleMode.alarmClock,
-      payload:             'timer:$name',
+    final at = DateTime.now().add(remaining);
+    await _scheduleNative(
+      req_code:       _tnid(id),
+      epoch_ms:       at.millisecondsSinceEpoch,
+      sound_uri:      _timer_sound,
+      name:           name.isEmpty ? 'Timer done' : name,
+      type:           'timer',
+      crescendo_secs: 0,
+      snooze_mins:    _snooze_mins,
+      add_mins:       _add_mins,
     );
   }
 
-  /// Cancel a pending timer-end background notification.
   static Future<void> cancelTimerEnd(String id) async {
     if (!Platform.isAndroid) return;
-    await _plugin.cancel(id: _tnid(id));
+    await _cancelAndroid(_tnid(id));
   }
 
-  /// Dismiss the timer-done notification (shown by [notifyTimerDone]).
-  static Future<void> cancelTimerDone() async {
-    if (Platform.isLinux) { _stopLinuxSound(); return; }
-    if (!Platform.isAndroid) return;
-    await _plugin.cancel(id: _timer_done_nid);
-  }
-
-  /// Fire an immediate timer-done alert with sound.
-  /// On Android: heads-up notification.  On Linux: system sound.
+  /// Play the timer-done alarm sound in-app (foreground expiry path).
+  /// On Android: starts AlarmRingtoneService (instant-on, no crescendo).
+  /// On Linux: plays via paplay.
   static Future<void> notifyTimerDone(String name) async {
     if (Platform.isAndroid) {
-      final title = name.isEmpty ? 'Timer done' : name;
-      await _plugin.show(
-        id:                  _timer_done_nid,
-        title:               title,
-        body:                'Your timer has finished',
-        notificationDetails: _timerNotifDetails(),
-        payload:             'timer:$name',
+      await _startRingtone(
+        sound_uri:      _timer_sound,
+        name:           name.isEmpty ? 'Timer done' : name,
+        type:           'timer',
+        crescendo_secs: 0,
+        snooze_mins:    _snooze_mins,
+        add_mins:       _add_mins,
+        req_code:       0,
       );
     } else if (Platform.isLinux) {
       await _playLinuxSound(uri: _timer_sound);
     }
   }
 
-  // ── notification detail factories (public so background handler can reuse) ─
-
-  // alarmNotifDetails() is called by the background isolate (no sound arg there
-  // — it uses the default channel which is always created during init).
-  static NotificationDetails alarmNotifDetails({String sound = ''}) {
-    final ch_id = _alarmChId(sound);
-    return NotificationDetails(
-      android: AndroidNotificationDetails(
-        ch_id,
-        'Alarms',
-        channelDescription:   'Noctua alarm notifications',
-        importance:           Importance.max,
-        priority:             Priority.max,
-        fullScreenIntent:     true,
-        category:             AndroidNotificationCategory.alarm,
-        audioAttributesUsage: AudioAttributesUsage.alarm,
-        sound: sound.isEmpty ? null : UriAndroidNotificationSound(sound),
-        actions: const [
-          AndroidNotificationAction(
-            'dismiss', 'Dismiss',
-            cancelNotification:  true,
-            showsUserInterface:  true,
-          ),
-          AndroidNotificationAction(
-            'snooze', 'Snooze 10m',
-            cancelNotification: true,
-            showsUserInterface: false,
-          ),
-        ],
-      ),
-    );
+  static Future<void> cancelTimerDone() async {
+    if (Platform.isLinux) { _stopLinuxSound(); return; }
+    if (!Platform.isAndroid) return;
+    await stopRingtone();
   }
 
-  static NotificationDetails _timerNotifDetails() {
-    final ch_id = _timerChId(_timer_sound);
-    final sound = _timer_sound;
-    return NotificationDetails(
-      android: AndroidNotificationDetails(
-        ch_id,
-        'Timers',
-        channelDescription:   'Noctua timer alerts',
-        importance:           Importance.max,
-        priority:             Priority.max,
-        fullScreenIntent:     true,
-        category:             AndroidNotificationCategory.alarm,
-        audioAttributesUsage: AudioAttributesUsage.alarm,
-        playSound:            true,
-        enableVibration:      true,
-        // ongoing prevents the alarm sound from stopping when the notification
-        // shade is pulled down (collapsing the heads-up popup).
-        ongoing:    true,
-        autoCancel: false,
-        sound: sound.isEmpty ? null : UriAndroidNotificationSound(sound),
-        actions: const [
-          AndroidNotificationAction(
-            'dismiss_timer', 'Dismiss',
-            cancelNotification: true,
-          ),
-        ],
-      ),
-    );
+  static Future<void> stopRingtone() async {
+    if (!Platform.isAndroid) return;
+    try { await _alarm_ch.invokeMethod<void>('stopRingtone'); } catch (_) {}
   }
 
-  // ── internals ─────────────────────────────────────────────────────────────
+  // ── private Android helpers ───────────────────────────────────────────────
 
-  static Future<void> _schedule(AlarmConfig alarm) async {
-    final now   = tz.TZDateTime.now(tz.local);
-    final title = alarm.label.isEmpty ? 'Alarm' : alarm.label;
+  static Future<void> _scheduleNative({
+    required int    req_code,
+    required int    epoch_ms,
+    required String sound_uri,
+    required String name,
+    required String type,
+    required int    crescendo_secs,
+    int snooze_mins = 10,
+    int add_mins    = 1,
+  }) async {
+    try {
+      await _alarm_ch.invokeMethod<void>('scheduleAlarm', {
+        'req_code':       req_code,
+        'ms':             epoch_ms,
+        'sound_uri':      sound_uri,
+        'name':           name,
+        'type':           type,
+        'crescendo_secs': crescendo_secs,
+        'snooze_mins':    snooze_mins,
+        'add_mins':       add_mins,
+      });
+    } catch (_) {}
+  }
+
+  static Future<void> _cancelAndroid(int req_code) async {
+    try {
+      await _alarm_ch.invokeMethod<void>('cancelAlarm', {'req_code': req_code});
+    } catch (_) {}
+  }
+
+  static Future<void> _startRingtone({
+    required String sound_uri,
+    required String name,
+    required String type,
+    required int    crescendo_secs,
+    int snooze_mins = 10,
+    int add_mins    = 1,
+    int req_code    = 0,
+  }) async {
+    try {
+      await _alarm_ch.invokeMethod<void>('startRingtone', {
+        'sound_uri':      sound_uri,
+        'name':           name,
+        'type':           type,
+        'crescendo_secs': crescendo_secs,
+        'snooze_mins':    snooze_mins,
+        'add_mins':       add_mins,
+        'req_code':       req_code,
+      });
+    } catch (_) {}
+  }
+
+  static Future<void> _scheduleAndroid(AlarmConfig alarm) async {
+    final now     = DateTime.now();
+    final title   = alarm.label.isEmpty ? 'Alarm' : alarm.label;
+    const crescendo = 30;
 
     if (alarm.repeat_days.isEmpty) {
-      var at = tz.TZDateTime(
-          tz.local, now.year, now.month, now.day, alarm.hour, alarm.minute);
+      var at = DateTime(now.year, now.month, now.day, alarm.hour, alarm.minute);
       if (!at.isAfter(now)) at = at.add(const Duration(days: 1));
-
-      await _plugin.zonedSchedule(
-        id:                  _anid(alarm.id, 7),
-        title:               title,
-        body:                alarm.time_string,
-        scheduledDate:       at,
-        notificationDetails: alarmNotifDetails(sound: _alarm_sound),
-        androidScheduleMode: AndroidScheduleMode.alarmClock,
-        payload:             title,
+      await _scheduleNative(
+        req_code:       _anid(alarm.id, 7),
+        epoch_ms:       at.millisecondsSinceEpoch,
+        sound_uri:      _alarm_sound,
+        name:           title,
+        type:           'alarm',
+        crescendo_secs: crescendo,
+        snooze_mins:    _snooze_mins,
+        add_mins:       _add_mins,
       );
     } else {
       for (final day in alarm.repeat_days) {
-        final at = _nextWeekdayTime(now, day + 1, alarm.hour, alarm.minute);
-        await _plugin.zonedSchedule(
-          id:                       _anid(alarm.id, day),
-          title:                    title,
-          body:                     alarm.time_string,
-          scheduledDate:            at,
-          notificationDetails:      alarmNotifDetails(sound: _alarm_sound),
-          androidScheduleMode:      AndroidScheduleMode.alarmClock,
-          matchDateTimeComponents:  DateTimeComponents.dayOfWeekAndTime,
-          payload:                  title,
+        final at = _nextWeekdayOccurrenceLocal(day + 1, alarm.hour, alarm.minute);
+        await _scheduleNative(
+          req_code:       _anid(alarm.id, day),
+          epoch_ms:       at.millisecondsSinceEpoch,
+          sound_uri:      _alarm_sound,
+          name:           title,
+          type:           'alarm',
+          crescendo_secs: crescendo,
+          snooze_mins:    _snooze_mins,
+          add_mins:       _add_mins,
         );
       }
     }
   }
 
-  static Future<void> _cancelAlarm(AlarmConfig alarm) async {
+  static Future<void> _cancelAlarmAndroid(AlarmConfig alarm) async {
     for (int slot = 0; slot <= 7; slot++) {
-      await _plugin.cancel(id: _anid(alarm.id, slot));
+      await _cancelAndroid(_anid(alarm.id, slot));
     }
-  }
-
-  static tz.TZDateTime _nextWeekdayTime(
-      tz.TZDateTime from, int weekday, int hour, int minute) {
-    var t = tz.TZDateTime(
-        tz.local, from.year, from.month, from.day, hour, minute);
-    while (t.weekday != weekday || !t.isAfter(from)) {
-      t = t.add(const Duration(days: 1));
-    }
-    return t;
   }
 
   // ── Linux alarm timers ────────────────────────────────────────────────────
   //
-  // flutter_local_notifications has no Linux backend, so we drive alarms with
-  // plain Dart Timers.  Repeating alarms reschedule themselves each time they
-  // fire.  All timers are keyed by alarm id so they can be cancelled cleanly.
+  // flutter_local_notifications has no Linux backend, so alarms are driven by
+  // plain Dart Timers. Repeating alarms reschedule themselves on fire.
 
   static final Map<String, List<Timer>> _linux_timers = {};
   static Timer? _linux_snooze_timer;
@@ -525,7 +408,6 @@ class AlarmService {
     if (!alarm.enabled) return;
     final label = alarm.label.isEmpty ? 'Alarm' : alarm.label;
     if (alarm.repeat_days.isEmpty) {
-      // One-shot: fire once, then remove.
       final delay = _nextOccurrenceLocal(alarm.hour, alarm.minute)
           .difference(DateTime.now());
       _linux_timers[alarm.id] = [
@@ -536,10 +418,9 @@ class AlarmService {
         }),
       ];
     } else {
-      // Repeating: one timer per day-of-week; each reschedules itself.
       _linux_timers[alarm.id] = alarm.repeat_days
-          .map((day) => _linuxRepeatTimer(alarm.id, day + 1, alarm.hour,
-              alarm.minute, label))
+          .map((day) => _linuxRepeatTimer(
+              alarm.id, day + 1, alarm.hour, alarm.minute, label))
           .toList();
     }
   }
@@ -551,11 +432,10 @@ class AlarmService {
     return Timer(delay, () {
       _playLinuxSound();
       _event_ctrl.add(AlarmEvent.tapped(label, 0));
-      // Reschedule only if the alarm hasn't been cancelled.
       if (_linux_timers.containsKey(alarm_id)) {
         final timers = _linux_timers[alarm_id]!;
         final new_t = _linuxRepeatTimer(alarm_id, weekday, hour, minute, label);
-        final idx = timers.indexWhere((t) => !t.isActive);
+        final idx   = timers.indexWhere((t) => !t.isActive);
         if (idx >= 0) { timers[idx] = new_t; } else { timers.add(new_t); }
       }
     });
@@ -578,10 +458,7 @@ class AlarmService {
     return t;
   }
 
-  static DateTime _nextWeekdayOccurrenceLocal(
-      int weekday, int hour, int minute) {
-    // weekday: 1 = Mon … 7 = Sun (Dart DateTime convention).
-    // AlarmConfig uses 0 = Mon … 6 = Sun, so callers pass day + 1.
+  static DateTime _nextWeekdayOccurrenceLocal(int weekday, int hour, int minute) {
     final now = DateTime.now();
     var t = DateTime(now.year, now.month, now.day, hour, minute);
     while (t.weekday != weekday || !t.isAfter(now)) {
@@ -595,8 +472,6 @@ class AlarmService {
   static Process? _linux_sound_proc;
 
   static Future<void> _playLinuxSound({String uri = ''}) async {
-    // Use the supplied URI, otherwise fall back to configured sounds,
-    // then freedesktop defaults.
     final candidates = [
       if (uri.isNotEmpty) uri,
       if (_alarm_sound.isNotEmpty) _alarm_sound,
