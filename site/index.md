@@ -21,6 +21,11 @@ Five screens. Animated backgrounds. Alarms that fire.
   <a class="btn btn-secondary" href="https://github.com/opennomad/noctua">GitHub</a>
 </nav>
 
+<p class="support-links">
+  <a href="https://ko-fi.com/opennomad">☕ Ko-fi</a> ·
+  <a href="https://liberapay.com/opennomad">❤️ Liberapay</a>
+</p>
+
 </header>
 
 ---
@@ -180,13 +185,25 @@ mise exec -- flutter run -d linux
 
 [mise](https://mise.jdx.dev/) manages the Flutter and Dart toolchain. Install it first if you haven't, then run `mise install` in the project root.
 
-### Android
+### Android (prebuilt)
+
+- [noctua-v0.1.0.apk (Codeberg)](https://codeberg.org/opennomad/noctua/releases/download/v0.1.0/noctua-v0.1.0.apk)
+- [noctua-v0.1.0.apk (GitHub)](https://github.com/opennomad/noctua/releases/download/v0.1.0/noctua-v0.1.0.apk)
+
+### Android (from source)
 
 ```bash
 mise exec -- flutter run
 ```
 
 On first launch Noctua requests **notification**, **exact alarm**, and **full-screen intent** permissions. All three are needed for alarms to fire and show on the lock screen.
+
+### Linux (prebuilt)
+
+Download and extract the tarball, then run `noctua`:
+
+- [noctua-v0.1.0-linux.tar.gz (Codeberg)](https://codeberg.org/opennomad/noctua/releases/download/v0.1.0/noctua-v0.1.0-linux.tar.gz)
+- [noctua-v0.1.0-linux.tar.gz (GitHub)](https://github.com/opennomad/noctua/releases/download/v0.1.0/noctua-v0.1.0-linux.tar.gz)
 
 ---
 

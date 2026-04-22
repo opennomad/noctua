@@ -1,12 +1,18 @@
 # noctua
 
-![Noctua owl logo](assets/logo.svg)
+<img src="assets/logo.svg" width="80" alt="Noctua owl logo" />
 
 A beautiful, minimal clock app for Linux desktop and Android.
 
 **Official repository:** [code.opennomad.com/opennomad/noctua](https://code.opennomad.com/opennomad/noctua)
 
 Mirrors: [GitHub](https://github.com/opennomad/noctua) · [Codeberg](https://codeberg.org/opennomad/noctua)
+
+## Support
+
+Noctua is free and open source. If you find it useful:
+- [Ko-fi](https://ko-fi.com/opennomad) — one-time coffee
+- [Liberapay](https://liberapay.com/opennomad) — recurring support
 
 Five individually-coloured screens, animated backgrounds, alarm and timer notifications with configurable sound.
 
