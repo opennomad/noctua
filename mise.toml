@@ -1,27 +1,30 @@
+[env]
+_.source = ".mise-env.sh"
+
 [tools]
 android-sdk = "latest"
 flutter = "stable"
 java = "temurin-21"
 
 [tasks.test]
-description = "run the app"
+description = "run the tests"
 run = "flutter test"
 
-[tasks.build-android]
+[tasks.analyze]
+description = "analyze the app"
+run = "flutter analyze"
+
+[tasks."build:android"]
 description = "build android APK"
 run = "flutter build apk --release"
+depends = ["test","analyze"]
 
-[tasks.clear-android]
-description = "uninstall on android"
-run = "adb uninstall com.opennomad.noctua"
-
-[tasks.linux]
-description = "run the app on linux"
-run = "flutter run -d linux"
-
-[tasks.android]
+[tasks."run:android"]
 description = "run the app on android"
-run = "flutter run -d R5CT615C3JJ" 
+# default device will be connected android, but can be forced
+# may require clear:adb
+# run = "flutter run -d R5CT615C3JJ" 
+run = "flutter run"
 
 [tasks.clear-adb]
 description = "run the app on android"
@@ -30,3 +33,69 @@ adb kill-server
 adb start-server
 adb devices
 '''
+
+# removes/uninstalls/resets
+[tasks."clear:android"]
+description = "uninstall on android"
+run = "adb uninstall com.opennomad.noctua"
+
+[tasks."run:linux"]
+description = "run the app on linux"
+run = "flutter run -d linux"
+
+[tasks."build:linux"]
+description = "run the app on linux"
+run = "flutter build linux --release"
+depends = ["test","analyze"]
+
+# package things up
+[tasks."package:android"]
+run = "cp build/app/outputs/flutter-apk/app-release.apk build/noctua-v${VERSION}.apk"
+depends = ["build:android"]
+
+[tasks."package:linux"]
+run = "tar -czf build/noctua-v${VERSION}-linux.tar.gz -C build/linux/x64/release/bundle ."
+depends = ["build:linux"]
+
+
+# opennomad (Gitea CLI):
+[tasks."release:opennomad"]
+description = "release to opennomad"
+run = '''
+tea release create v${VERSION} \
+--login opennomad.com \
+--title v${VERSION} \
+--note "See the changelog at https://code.opennomad.com/opennomad/noctua" \
+--asset build/noctua-v${VERSION}.apk \
+--asset build/noctua-v${VERSION}-linux.tar.gz \
+--repo opennomad/noctua
+'''
+
+# Codeberg (Gitea CLI):
+[tasks."release:codeberg"]
+description = "release to codeberg"
+run = '''
+tea release create v${VERSION} \
+--login codeberg.org \
+--title v${VERSION} \
+--note "See the changelog at https://codeberg.org/opennomad/noctua" \
+--asset build/noctua-v${VERSION}.apk \
+--asset build/noctua-v${VERSION}-linux.tar.gz \
+--repo opennomad/noctua
+'''
+
+# GitHub (GitHub CLI):
+[tasks."release:github"]
+description = "release to github"
+run = '''
+gh release create v${VERSION} \
+--title v${VERSION} \
+--notes "See the changelog at https://github.com/opennomad/noctua" \
+--repo opennomad/noctua &&
+gh release upload v${VERSION} \
+build/noctua-v${VERSION}.apk \
+build/noctua-v${VERSION}-linux.tar.gz \
+--repo opennomad/noctua
+'''
+
+
