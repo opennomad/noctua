@@ -1,16 +1,11 @@
 package com.opennomad.noctua
 
-import android.Manifest
 import android.app.KeyguardManager
-import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Build
 import android.os.PowerManager
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 
 /**
  * Receives AlarmManager.setAlarmClock() broadcasts when an alarm or timer fires.
@@ -25,17 +20,6 @@ class AlarmFireReceiver : BroadcastReceiver() {
   override fun onReceive(context: Context, intent: Intent) {
     // Cancel countdown notification when alarm fires
     AlarmCountdownService.cancel(context)
-
-    // Request notification permission on Android 13+
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-      if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
-          != PackageManager.PERMISSION_GRANTED
-      ) {
-        // Can't show notification without permission - try to request
-        val pm = context.packageManager
-        // Permission will be requested when app opens
-      }
-    }
 
     // Wake lock to ensure screen turns on and CPU stays awake
     val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
