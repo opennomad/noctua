@@ -111,12 +111,12 @@ class AlarmRingtoneService : Service() {
 
     // Tapping the notification body (when screen is on / not locked) opens the
     // alarm/timer screen in Flutter.
+    // FLAG_ACTIVITY_SINGLE_TOP ensures onNewIntent() fires (not onCreate()) when
+    // MainActivity is already running, so the "destination" extra is processed.
     val tap_pi = PendingIntent.getActivity(
       this, 2,
       Intent(this, MainActivity::class.java).apply {
-        flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                Intent.FLAG_ACTIVITY_CLEAR_TASK or
-                Intent.FLAG_ACTIVITY_SINGLE_TOP
+        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
         putExtra("destination", if (type == "timer") "timer" else "alarm")
       },
       PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,

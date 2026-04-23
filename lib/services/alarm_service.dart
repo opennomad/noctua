@@ -205,10 +205,13 @@ class AlarmService {
       if (info == null) return;
       final type = (info['type'] as String?) ?? '';
       final name = (info['name'] as String?) ?? '';
-      // Show the dismiss sheet without stopping the ringtone — the user must
-      // explicitly dismiss from the sheet or AlarmActivity.
+      // Navigate to the right screen first, then show the dismiss sheet.
+      // This covers cold-start (no onNewIntent) and timer expiry (no tapped event).
       if (type == 'alarm') {
+        _event_ctrl.add(AlarmEvent.navigated('alarm', 0));
         _event_ctrl.add(AlarmEvent.tapped(name, _ringing_notif_id));
+      } else if (type == 'timer') {
+        _event_ctrl.add(AlarmEvent.navigated('timer', 0));
       }
     } catch (_) {}
   }
