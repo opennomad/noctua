@@ -155,6 +155,29 @@ class AlarmService {
     _add_mins    = add_mins;
   }
 
+  /// Push alarm/timer screen colors to native SharedPreferences so AlarmActivity
+  /// can apply them without Flutter being loaded. Colors are signed 32-bit ARGB ints.
+  static Future<void> updateColors({
+    required int alarm_bg,
+    required int alarm_accent,
+    required int alarm_text,
+    required int timer_bg,
+    required int timer_accent,
+    required int timer_text,
+  }) async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _alarm_ch.invokeMethod<void>('setColors', {
+        'alarm_bg':     alarm_bg,
+        'alarm_accent': alarm_accent,
+        'alarm_text':   alarm_text,
+        'timer_bg':     timer_bg,
+        'timer_accent': timer_accent,
+        'timer_text':   timer_text,
+      });
+    } catch (_) {}
+  }
+
   static Future<void> setCountdownEnabled(bool enabled, {int within_hours = 12}) async {
     _countdown_enabled = enabled;
     _countdown_within_hours = within_hours;

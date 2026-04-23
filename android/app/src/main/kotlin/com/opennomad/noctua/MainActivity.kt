@@ -2,6 +2,7 @@ package com.opennomad.noctua
 
 import android.app.AlarmManager
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.media.Ringtone
 import android.media.RingtoneManager
@@ -254,6 +255,20 @@ class MainActivity : FlutterActivity() {
 
         "cancelCountdown" -> {
           AlarmCountdownService.cancel(this)
+          result.success(null)
+        }
+
+        // Store alarm/timer screen colors so AlarmActivity can apply them
+        // without Flutter being loaded.
+        "setColors" -> {
+          val p = getSharedPreferences("noctua_colors", Context.MODE_PRIVATE).edit()
+          p.putInt("alarm_bg",     call.argument<Int>("alarm_bg")     ?: 0)
+          p.putInt("alarm_accent", call.argument<Int>("alarm_accent") ?: 0)
+          p.putInt("alarm_text",   call.argument<Int>("alarm_text")   ?: 0)
+          p.putInt("timer_bg",     call.argument<Int>("timer_bg")     ?: 0)
+          p.putInt("timer_accent", call.argument<Int>("timer_accent") ?: 0)
+          p.putInt("timer_text",   call.argument<Int>("timer_text")   ?: 0)
+          p.apply()
           result.success(null)
         }
 

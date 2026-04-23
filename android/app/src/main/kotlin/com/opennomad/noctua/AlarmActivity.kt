@@ -5,6 +5,10 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.RippleDrawable
 import android.os.Build
 import android.os.Bundle
 import android.view.KeyEvent
@@ -39,20 +43,89 @@ class AlarmActivity : Activity() {
     soundUri   = intent.getStringExtra("sound_uri") ?: ""
     snoozeMins = intent.getIntExtra("snooze_mins", 10)
 
-    findViewById<TextView>(R.id.alarm_title).text = alarmName.ifEmpty { "Alarm" }
+    applyColors()
+
+    val title_label = alarmName.ifEmpty { if (alarmType == "timer") "Timer" else "Alarm" }
+    findViewById<TextView>(R.id.alarm_title).text = title_label
     findViewById<TextView>(R.id.alarm_time).text = java.text.SimpleDateFormat(
       "HH:mm", java.util.Locale.getDefault()
     ).format(java.util.Date())
 
     findViewById<Button>(R.id.btn_dismiss).setOnClickListener { dismiss() }
 
-    val snoozeBtn = findViewById<Button>(R.id.btn_snooze)
+    val snooze_btn = findViewById<Button>(R.id.btn_snooze)
     if (alarmType == "timer") {
-      snoozeBtn.visibility = View.GONE
+      snooze_btn.visibility = View.GONE
     } else {
-      snoozeBtn.text = "Snooze ${snoozeMins}m"
-      snoozeBtn.setOnClickListener { snooze() }
+      snooze_btn.text = "Snooze ${snoozeMins}m"
+      snooze_btn.setOnClickListener { snooze() }
     }
+  }
+
+  private fun applyColors() {
+    val prefs   = getSharedPreferences("noctua_colors", Context.MODE_PRIVATE)
+    val key     = if (alarmType == "timer") "timer" else "alarm"
+    val bg      = prefs.getInt("${key}_bg",     Color.rgb(0x0A, 0x16, 0x28))
+    val accent  = prefs.getInt("${key}_accent", Color.rgb(0x64, 0xB5, 0xF6))
+    val text    = prefs.getInt("${key}_text",   Color.WHITE)
+
+    // Background
+    findViewById<View>(R.id.root_layout).setBackgroundColor(bg)
+
+    // Title: 70% opacity of text color
+    val title_color = Color.argb(
+      0xB3,
+      Color.red(text), Color.green(text), Color.blue(text),
+    )
+    findViewById<TextView>(R.id.alarm_title).setTextColor(title_color)
+
+    // Time: full text color
+    findViewById<TextView>(R.id.alarm_time).setTextColor(text)
+
+    val density = resources.displayMetrics.density
+
+    // Dismiss: solid accent pill, white text
+    val dismiss_btn = findViewById<Button>(R.id.btn_dismiss)
+    dismiss_btn.background = makeSolidPill(accent, 28f * density)
+    dismiss_btn.setTextColor(Color.WHITE)
+
+    // Snooze: ghost/outline pill, accent text
+    val snooze_btn = findViewById<Button>(R.id.btn_snooze)
+    snooze_btn.background = makeOutlinePill(accent, 24f * density, (1.5f * density).toInt())
+    snooze_btn.setTextColor(accent)
+  }
+
+  private fun makeSolidPill(color: Int, radius: Float): RippleDrawable {
+    val bg = GradientDrawable().apply {
+      shape = GradientDrawable.RECTANGLE
+      cornerRadius = radius
+      setColor(color)
+    }
+    val mask = GradientDrawable().apply {
+      shape = GradientDrawable.RECTANGLE
+      cornerRadius = radius
+      setColor(Color.WHITE)
+    }
+    val ripple = ColorStateList.valueOf(Color.argb(0x40, 0, 0, 0))
+    return RippleDrawable(ripple, bg, mask)
+  }
+
+  private fun makeOutlinePill(color: Int, radius: Float, stroke: Int): RippleDrawable {
+    val bg = GradientDrawable().apply {
+      shape = GradientDrawable.RECTANGLE
+      cornerRadius = radius
+      setStroke(stroke, color)
+      setColor(Color.TRANSPARENT)
+    }
+    val mask = GradientDrawable().apply {
+      shape = GradientDrawable.RECTANGLE
+      cornerRadius = radius
+      setColor(Color.WHITE)
+    }
+    val ripple = ColorStateList.valueOf(
+      Color.argb(0x28, Color.red(color), Color.green(color), Color.blue(color))
+    )
+    return RippleDrawable(ripple, bg, mask)
   }
 
   private fun applyLockScreenFlags() {

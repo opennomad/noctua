@@ -8,6 +8,7 @@ import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 import 'services/alarm_service.dart';
 import 'config/config_service.dart';
+import 'theme/color_schemes.dart';
 import 'screens/alarm/alarm_dismiss_sheet.dart';
 import 'screens/clock/clock_screen.dart';
 import 'screens/clock/world_clock_screen.dart';
@@ -20,6 +21,14 @@ import 'widgets/stack_nav.dart';
 
 // Global navigator key — lets the keyboard handler detect open modals/sheets.
 final _nav_key = GlobalKey<NavigatorState>();
+
+// Convert a Flutter Color to a signed 32-bit ARGB int for Android SharedPreferences.
+int _argb(Color c) => (
+  ((c.a * 255).round() << 24) |
+  ((c.r * 255).round() << 16) |
+  ((c.g * 255).round() << 8)  |
+   (c.b * 255).round()
+).toSigned(32);
 
 class _DragScrollBehavior extends MaterialScrollBehavior {
   @override
@@ -107,6 +116,7 @@ class _NoctuaHomeState extends State<NoctuaHome> with WidgetsBindingObserver {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       AlarmService.requestPermissions();
       AlarmService.checkRinging();
+      _sendColors(widget.config);
     });
   }
 
@@ -123,6 +133,25 @@ class _NoctuaHomeState extends State<NoctuaHome> with WidgetsBindingObserver {
       timer:        cfg.timer_sound,
       snooze_mins:  cfg.alarm_snooze_minutes,
       add_mins:     cfg.timer_add_minutes,
+    );
+    _sendColors(cfg);
+  }
+
+  void _sendColors(NoctuaConfig cfg) {
+    if (!Platform.isAndroid) return;
+    final alarm_slot = cfg.screens.firstWhere(
+      (s) => s.id == 'alarm', orElse: () => const ScreenSlot(id: 'alarm', scheme: 'blue'));
+    final timer_slot = cfg.screens.firstWhere(
+      (s) => s.id == 'timer', orElse: () => const ScreenSlot(id: 'timer', scheme: 'blue'));
+    final alarm_sc = schemeByName(alarm_slot.scheme);
+    final timer_sc = schemeByName(timer_slot.scheme);
+    AlarmService.updateColors(
+      alarm_bg:     _argb(alarm_sc.primary),
+      alarm_accent: _argb(alarm_sc.accent),
+      alarm_text:   _argb(alarm_sc.text),
+      timer_bg:     _argb(timer_sc.primary),
+      timer_accent: _argb(timer_sc.accent),
+      timer_text:   _argb(timer_sc.text),
     );
   }
 
