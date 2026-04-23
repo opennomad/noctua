@@ -10,5 +10,7 @@ module.exports = function (eleventyConfig) {
       output:   '_site',
     },
     markdownTemplateEngine: false,
+    templateFormats: ['md', 'njk'],
+    ignoredFiles: ['.conform.*'],
   };
 };
