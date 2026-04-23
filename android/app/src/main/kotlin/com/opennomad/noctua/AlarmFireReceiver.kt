@@ -1,6 +1,5 @@
 package com.opennomad.noctua
 
-import android.app.KeyguardManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -11,33 +10,30 @@ import android.os.PowerManager
  * Receives AlarmManager.setAlarmClock() broadcasts when an alarm or timer fires.
  *
  * Two-pronged approach for raising the app:
- *   1. Start AlarmRingtoneService (foreground service → MediaPlayer + fullScreenIntent).
- *   2. Call startActivity() directly — setAlarmClock BroadcastReceiver callbacks are
- *      exempt from Android 10+ background-activity-start restrictions without needing
- *      USE_FULL_SCREEN_INTENT.
+ *   1. Start AlarmRingtoneService first — posts the fullScreenIntent notification
+ *      while the screen is still off, so Android fires it as a true full-screen
+ *      activity rather than a heads-up banner.
+ *   2. Call startActivity(AlarmActivity) directly as a fallback for devices where
+ *      fullScreenIntent is blocked; setAlarmClock BroadcastReceiver callbacks are
+ *      exempt from Android 10+ background-activity-start restrictions.
+ *
+ * AlarmRingtoneService posts a fullScreenIntent notification that wakes the screen
+ * and shows AlarmActivity on the lock screen. Android docs confirm FLAG_TURN_SCREEN_ON
+ * (set in AlarmActivity) paired with fullScreenIntent wakes the device without needing
+ * ACQUIRE_CAUSES_WAKEUP. A PARTIAL_WAKE_LOCK here just keeps the CPU alive long enough
+ * for startForeground() to fire — the system's fullScreenIntent machinery takes over
+ * from there.
+ *
+ * We do NOT call startActivity(AlarmActivity) here. The fullScreenIntent is the sole
+ * launch path; a second startActivity would race it and produce a visible flicker.
  */
 class AlarmFireReceiver : BroadcastReceiver() {
   override fun onReceive(context: Context, intent: Intent) {
-    // Cancel countdown notification when alarm fires
     AlarmCountdownService.cancel(context)
 
-    // Wake lock to ensure screen turns on and CPU stays awake
     val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-    val wakeLock = pm.newWakeLock(
-      PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
-        PowerManager.ACQUIRE_CAUSES_WAKEUP or
-        PowerManager.ON_AFTER_RELEASE,
-      "noctua:alarm_wake"
-    )
-    wakeLock.acquire(30_000L)  // 30 second timeout
-
-    // Dismiss keyguard so the activity can appear on locked devices
-    val km = context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
-    if (km.isKeyguardLocked) {
-      @Suppress("DEPRECATION")
-      val kgLock = km.newKeyguardLock("noctua:keyguard")
-      kgLock.disableKeyguard()
-    }
+    val wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "noctua:alarm_wake")
+    wakeLock.acquire(10_000L)
 
     val svc = Intent(context, AlarmRingtoneService::class.java).also {
       it.putExtra("sound_uri",      intent.getStringExtra("sound_uri")       ?: "")
@@ -53,15 +49,5 @@ class AlarmFireReceiver : BroadcastReceiver() {
     } else {
       context.startService(svc)
     }
-
-    // Direct raise — try simple startActivity first as AlarmManager
-    // callbacks are exempt from background restrictions
-    context.startActivity(
-      Intent(context, MainActivity::class.java).apply {
-        flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                Intent.FLAG_ACTIVITY_SINGLE_TOP
-      }
-    )
   }
 }

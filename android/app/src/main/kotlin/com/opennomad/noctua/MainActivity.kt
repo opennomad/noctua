@@ -75,6 +75,12 @@ class MainActivity : FlutterActivity() {
     super.onNewIntent(intent)
     applyLockScreenFlags()
 
+    // Navigate to the appropriate screen based on notification tap
+    val dest = intent.getStringExtra("destination")
+    if (!dest.isNullOrEmpty()) {
+      _alarms_channel?.invokeMethod("navigateTo", mapOf("screen" to dest))
+    }
+
     // Push any pending notification-button action to Flutter immediately so the
     // UI can update without waiting for the next checkRinging() poll.
     val action   = AlarmActionReceiver.consumeAction()

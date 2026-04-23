@@ -41,6 +41,11 @@ class AlarmActionReceiver : BroadcastReceiver() {
     @Volatile var pending_action:   String = ""
     @Volatile var pending_add_mins: Int    = 0
 
+    fun setPendingAction(action: String, addMins: Int = 0) {
+      pending_action = action
+      pending_add_mins = addMins
+    }
+
     fun consumeAction(): String {
       val a = pending_action
       pending_action = ""

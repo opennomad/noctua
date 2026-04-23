@@ -9,9 +9,11 @@ import 'animated_background.dart';
 class StackNavController {
   VoidCallback? _go_next;
   VoidCallback? _go_prev;
+  void Function(String id)? _go_to;
 
   void goNext() => _go_next?.call();
   void goPrev() => _go_prev?.call();
+  void goTo(String id) => _go_to?.call(id);
 }
 
 class StackNav extends StatefulWidget {
@@ -120,9 +122,10 @@ class _StackNavState extends State<StackNav> with TickerProviderStateMixin {
     }
   }
 
-  void _registerController() {
+void _registerController() {
     widget.controller?._go_next = _goNext;
     widget.controller?._go_prev = _goPrev;
+    widget.controller?._go_to = _goTo;
   }
 
   @override
@@ -131,8 +134,6 @@ class _StackNavState extends State<StackNav> with TickerProviderStateMixin {
     _anim_t.dispose();
     _pills_timer?.cancel();
     _pills_fade.dispose();
-    _pills_ctrl.dispose();
-    _eased.dispose();
     _ctrl.dispose();
     super.dispose();
   }
@@ -147,7 +148,7 @@ class _StackNavState extends State<StackNav> with TickerProviderStateMixin {
     });
   }
 
-  // ── navigation ────────────────────────────────────────────────────────────
+  // ── navigation ───────────────────────────────────────────────────────────
 
   void _goNext() {
     final n = _active.length;
@@ -159,6 +160,15 @@ class _StackNavState extends State<StackNav> with TickerProviderStateMixin {
     final n = _active.length;
     if (n < 2) return;
     _navigate((_front_page - 1 + n) % n);
+  }
+
+  void _goTo(String id) {
+    for (var i = 0; i < _active.length; i++) {
+      if (_active[i].id == id) {
+        _navigate(i);
+        return;
+      }
+    }
   }
 
   void _navigate(int target) {

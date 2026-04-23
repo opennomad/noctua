@@ -6,7 +6,7 @@ import '../config/noctua_config.dart';
 
 // ── AlarmEvent ────────────────────────────────────────────────────────────────
 
-enum AlarmEventType { tapped, dismissed, snoozed }
+enum AlarmEventType { tapped, dismissed, snoozed, navigated }
 
 class AlarmEvent {
   final AlarmEventType type;
@@ -16,6 +16,7 @@ class AlarmEvent {
   factory AlarmEvent.tapped(String l, int id)    => AlarmEvent._(AlarmEventType.tapped,    l, id);
   factory AlarmEvent.dismissed(String l, int id) => AlarmEvent._(AlarmEventType.dismissed, l, id);
   factory AlarmEvent.snoozed(String l, int id)   => AlarmEvent._(AlarmEventType.snoozed,   l, id);
+  factory AlarmEvent.navigated(String l, int id) => AlarmEvent._(AlarmEventType.navigated, l, id);
 }
 
 // ── AlarmService ──────────────────────────────────────────────────────────────
@@ -105,6 +106,10 @@ class AlarmService {
         case 'onAddedMinutes':
           final mins = (call.arguments as int?) ?? _add_mins;
           _added_minutes_ctrl.add(mins);
+        case 'navigateTo':
+          final args = call.arguments as Map<dynamic, dynamic>?;
+          final screen = args?['screen'] as String? ?? 'alarm';
+          _event_ctrl.add(AlarmEvent.navigated(screen, 0));
       }
     });
 
@@ -200,11 +205,8 @@ class AlarmService {
       if (info == null) return;
       final type = (info['type'] as String?) ?? '';
       final name = (info['name'] as String?) ?? '';
-      // When dismissed via notification action, stop the ringing service.
-      // (The pending action was already consumed above — we just need to stop the sound.)
-      if (type == 'timer' || type == 'alarm') {
-        await stopRingtone();
-      }
+      // Show the dismiss sheet without stopping the ringtone — the user must
+      // explicitly dismiss from the sheet or AlarmActivity.
       if (type == 'alarm') {
         _event_ctrl.add(AlarmEvent.tapped(name, _ringing_notif_id));
       }

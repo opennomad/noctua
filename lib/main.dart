@@ -150,6 +150,9 @@ class _NoctuaHomeState extends State<NoctuaHome> with WidgetsBindingObserver {
         Navigator.of(context).maybePop();
       case AlarmEventType.snoozed:
         break;
+      case AlarmEventType.navigated:
+        final target = event.label == 'timer' ? 'timer' : 'alarm';
+        _stack_ctrl.goTo(target);
     }
   }
 

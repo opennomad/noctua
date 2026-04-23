@@ -92,13 +92,32 @@ class AlarmRingtoneService : Service() {
   ): Notification {
     val title = name.ifEmpty { if (type == "timer") "Timer done" else "Alarm" }
 
-    // Tapping the notification body opens the app.
+    // fullScreenIntent: shows AlarmActivity full-screen on locked/sleeping devices.
+    // AlarmActivity.setTurnScreenOn(true) wakes the screen via the OS's own
+    // fullScreenIntent machinery — no ACQUIRE_CAUSES_WAKEUP needed.
+    val fullScreenPi = PendingIntent.getActivity(
+      this, 1,
+      Intent(this, AlarmActivity::class.java).apply {
+        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        putExtra("name",           name)
+        putExtra("type",           type)
+        putExtra("sound_uri",      sound_uri)
+        putExtra("snooze_mins",    snooze_mins)
+        putExtra("add_mins",       add_mins)
+        putExtra("req_code",       req_code)
+      },
+      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+
+    // Tapping the notification body (when screen is on / not locked) opens the
+    // alarm/timer screen in Flutter.
     val tap_pi = PendingIntent.getActivity(
-      this, 0,
+      this, 2,
       Intent(this, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                 Intent.FLAG_ACTIVITY_CLEAR_TASK or
                 Intent.FLAG_ACTIVITY_SINGLE_TOP
+        putExtra("destination", if (type == "timer") "timer" else "alarm")
       },
       PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
@@ -122,7 +141,7 @@ class AlarmRingtoneService : Service() {
       .setContentTitle(title)
       .setContentText("Tap to open")
       .setContentIntent(tap_pi)
-      .setFullScreenIntent(tap_pi, true)
+      .setFullScreenIntent(fullScreenPi, true)
       .setCategory(Notification.CATEGORY_ALARM)
       .setPriority(Notification.PRIORITY_MAX)
       .setOngoing(true)
