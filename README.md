@@ -48,10 +48,74 @@ Each screen has its own colour scheme, configurable in Settings.
 ## Running
 
 ```bash
-mise exec -- flutter run -d linux      # Linux desktop (dev)
-mise exec -- flutter run               # connected Android device
-mise exec -- flutter analyze           # must be clean before committing
-mise exec -- flutter test              # run unit tests
+mise run run:linux          # Linux desktop (dev)
+mise run run:android        # connected Android device
+mise run analyze            # must be clean before committing
+mise run test               # run unit tests
+```
+
+## Development tasks
+
+[Mise](https://mise.jdx.dev/) handles Flutter toolchain and provides standardized tasks:
+
+### Run
+
+| Task | Description |
+|------|-------------|
+| `mise run run:linux` | Run on Linux desktop |
+| `mise run run:android` | Run on connected Android device |
+| `mise run clear-adb` | Restart ADB server (fixes "device offline") |
+| `mise run clear:android` | Uninstall app from Android |
+
+### Test & Analyze
+
+| Task | Description |
+|------|-------------|
+| `mise run test` | Run unit tests |
+| `mise run analyze` | Run Flutter static analysis |
+
+### Build
+
+| Task | Description |
+|------|-------------|
+| `mise run build:android` | Build Android APK (release) — runs `test` and `analyze` first |
+| `mise run build:linux` | Build Linux release — runs `test` and `analyze` first |
+
+### Package
+
+| Task | Description |
+|------|-------------|
+| `mise run package:android` | Copy APK to `build/noctua-v{VERSION}.apk` |
+| `mise run package:linux` | Tarball Linux build to `build/noctua-v{VERSION}-linux.tar.gz` |
+
+### Release
+
+VERSION is inferred from `pubspec.yaml` automatically via `.mise-env.sh`.
+
+| Task | Description |
+|------|-------------|
+| `mise run release:opennomad` | Create release on [code.opennomad.com](https://code.opennomad.com/opennomad/noctua/releases) using `tea` |
+| `mise run release:codeberg` | Create release on [Codeberg](https://codeberg.org/opennomad/noctua/releases) using `tea` |
+| `mise run release:github` | Create release on [GitHub](https://github.com/opennomad/noctua/releases) using `gh` |
+
+### Full workflow example
+
+```bash
+# test & analyze first
+mise run analyze
+mise run test
+
+# build both platforms
+mise run build:android
+mise run build:linux
+
+# package artifacts
+mise run package:android
+mise run package:linux
+
+# release to one or more mirrors
+mise run release:github
+mise run release:codeberg
 ```
 
 ## Project layout

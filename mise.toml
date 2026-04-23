@@ -2,7 +2,9 @@
 _.source = ".mise-env.sh"
 
 [tools]
-android-sdk = "latest"
+# android-sdk = "1105.0.0"  # pinned for reproducibility - update periodically
+# android-sdk = "latest"
+android-sdk = "1.0"
 flutter = "stable"
 java = "temurin-21"
 
@@ -27,7 +29,7 @@ description = "run the app on android"
 run = "flutter run"
 
 [tasks.clear-adb]
-description = "run the app on android"
+description = "restart adb server"
 run = '''
 adb kill-server
 adb start-server
@@ -44,7 +46,7 @@ description = "run the app on linux"
 run = "flutter run -d linux"
 
 [tasks."build:linux"]
-description = "run the app on linux"
+description = "build linux release"
 run = "flutter build linux --release"
 depends = ["test","analyze"]
 
@@ -98,4 +100,6 @@ build/noctua-v${VERSION}-linux.tar.gz \
 --repo opennomad/noctua
 '''
 
-
+[tasks."publish:site"]
+description = "publish the website"
+run = "cd site && npm run build && npm run publish"
