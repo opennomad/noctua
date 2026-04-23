@@ -36,13 +36,15 @@ void main() async {
   final config_service = ConfigService();
   await config_service.load();
 
-  await AlarmService.init(
-    alarm_sound:  config_service.config.alarm_sound,
-    timer_sound:  config_service.config.timer_sound,
-    snooze_mins:  config_service.config.alarm_snooze_minutes,
-    add_mins:     config_service.config.timer_add_minutes,
-    alarms:       config_service.config.alarms,
-  );
+await AlarmService.init(
+      alarm_sound:  config_service.config.alarm_sound,
+      timer_sound:  config_service.config.timer_sound,
+      snooze_mins:  config_service.config.alarm_snooze_minutes,
+      add_mins:     config_service.config.timer_add_minutes,
+      countdown:   config_service.config.alarm_countdown,
+      countdown_within_hours: config_service.config.alarm_countdown_within_hours,
+      alarms:       config_service.config.alarms,
+    );
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
   runApp(NoctuaApp(config_service: config_service));

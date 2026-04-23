@@ -16,6 +16,9 @@ import android.os.Build
  */
 class AlarmFireReceiver : BroadcastReceiver() {
   override fun onReceive(context: Context, intent: Intent) {
+    // Cancel countdown notification when alarm fires
+    AlarmCountdownService.cancel(context)
+
     val svc = Intent(context, AlarmRingtoneService::class.java).also {
       it.putExtra("sound_uri",      intent.getStringExtra("sound_uri")       ?: "")
       it.putExtra("name",           intent.getStringExtra("name")            ?: "")

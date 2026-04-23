@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:xdg_directories/xdg_directories.dart';
+import '../services/alarm_service.dart';
 import 'noctua_config.dart';
 
 export 'noctua_config.dart';
@@ -224,6 +225,20 @@ class ConfigService extends ChangeNotifier {
 
   Future<void> setTimerAddMinutes(int minutes) async {
     _config = _config.copyWith(timer_add_minutes: minutes);
+    notifyListeners();
+    await save();
+  }
+
+  Future<void> setAlarmCountdown(bool enabled) async {
+    _config = _config.copyWith(alarm_countdown: enabled);
+    await AlarmService.setCountdownEnabled(enabled, within_hours: _config.alarm_countdown_within_hours);
+    notifyListeners();
+    await save();
+  }
+
+  Future<void> setAlarmCountdownWithinHours(int hours) async {
+    _config = _config.copyWith(alarm_countdown_within_hours: hours);
+    await AlarmService.setCountdownEnabled(_config.alarm_countdown, within_hours: hours);
     notifyListeners();
     await save();
   }

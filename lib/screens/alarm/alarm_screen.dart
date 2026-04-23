@@ -148,7 +148,40 @@ class _AlarmScreenState extends State<AlarmScreen>
 
 // ── alarm row ─────────────────────────────────────────────────────────────────
 
-class _AlarmRow extends StatelessWidget {
+String _timeUntilAlarm(AlarmConfig alarm) {
+  if (!alarm.enabled) return '';
+  final now = DateTime.now();
+  var at = DateTime(now.year, now.month, now.day, alarm.hour, alarm.minute);
+  if (!at.isAfter(now)) at = at.add(const Duration(days: 1));
+  
+  // For repeating alarms, find the next occurrence
+  if (alarm.repeat_days.isNotEmpty) {
+    for (int i = 0; i < 7; i++) {
+      final check = now.add(Duration(days: i));
+      if (alarm.repeat_days.contains(check.weekday - 1)) {
+        at = DateTime(check.year, check.month, check.day, alarm.hour, alarm.minute);
+        if (at.isAfter(now)) break;
+      }
+    }
+  }
+  
+  final diff = at.difference(now);
+  final hours = diff.inHours;
+  final mins = diff.inMinutes % 60;
+  
+  if (hours > 24) {
+    final days = hours ~/ 24;
+    return 'in ${days}d ${hours % 24}h';
+  } else if (hours > 0) {
+    return 'in ${hours}h ${mins}m';
+  } else if (mins > 0) {
+    return 'in ${mins}m';
+  } else {
+    return 'now';
+  }
+}
+
+class _AlarmRow extends StatefulWidget {
   final AlarmConfig alarm;
   final ConfigService config_service;
   final VoidCallback on_tap;
@@ -159,15 +192,38 @@ class _AlarmRow extends StatelessWidget {
     required this.on_tap,
   });
 
+  @override
+  State<_AlarmRow> createState() => _AlarmRowState();
+}
+
+class _AlarmRowState extends State<_AlarmRow> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    // Update every minute to refresh "time until"
+    _timer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
   Future<void> _toggle(bool val) async {
-    await config_service.updateAlarm(alarm.copyWith(enabled: val));
-    await AlarmService.syncAll(config_service.config.alarms);
+    await widget.config_service.updateAlarm(widget.alarm.copyWith(enabled: val));
+    await AlarmService.syncAll(widget.config_service.config.alarms);
   }
 
   @override
   Widget build(BuildContext context) {
+    final alarm = widget.alarm;
     return GestureDetector(
-      onTap: on_tap,
+      onTap: widget.on_tap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
         child: Row(
@@ -179,7 +235,7 @@ class _AlarmRow extends StatelessWidget {
                 children: [
                   Text(
                     formatTime(alarm.hour, alarm.minute,
-                        config_service.config.time_format),
+                        widget.config_service.config.time_format),
                     style: TextStyle(
                       fontSize: 36,
                       fontWeight: FontWeight.w100,
@@ -188,28 +244,33 @@ class _AlarmRow extends StatelessWidget {
                       fontFeatures: [FontFeature.tabularFigures()],
                     ),
                   ),
-                  const SizedBox(height: 2),
                   Row(
                     children: [
                       if (alarm.label.isNotEmpty) ...[
-                        Text(
-                          alarm.label,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: noctuaText(context)
-                                .withAlpha(alarm.enabled ? 153 : 77),
+                        Flexible(
+                          child: Text(
+                            alarm.label,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: noctuaText(context)
+                                  .withAlpha(alarm.enabled ? 153 : 77),
+                            ),
                           ),
                         ),
                         Text(' · ',
                             style: TextStyle(
                                 color: noctuaText(context).withAlpha(51))),
                       ],
-                      Text(
-                        alarm.repeat_label,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: noctuaText(context)
-                              .withAlpha(alarm.enabled ? 102 : 51),
+                      Flexible(
+                        child: Text(
+                          alarm.repeat_label,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: noctuaText(context)
+                                .withAlpha(alarm.enabled ? 102 : 51),
+                          ),
                         ),
                       ),
                     ],
@@ -217,6 +278,16 @@ class _AlarmRow extends StatelessWidget {
                 ],
               ),
             ),
+            if (alarm.enabled) ...[
+              Text(
+                _timeUntilAlarm(alarm),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: noctuaText(context).withAlpha(77),
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
             Switch(
               value: alarm.enabled,
               onChanged: _toggle,

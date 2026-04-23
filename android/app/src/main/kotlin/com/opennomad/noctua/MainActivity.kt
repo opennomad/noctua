@@ -205,6 +205,29 @@ class MainActivity : FlutterActivity() {
           result.success(null)
         }
 
+        "scheduleCountdown" -> {
+          val alarms_raw = call.argument<List<*>>("alarms")
+          val alarms: List<Map<String, Any>> = alarms_raw?.mapNotNull { item ->
+            (item as? Map<*, *>)?.let { map ->
+              mapOf(
+                "name" to (map["name"] as? String ?: ""),
+                "epoch_ms" to ((map["epoch_ms"] as? Number)?.toLong() ?: 0L)
+              )
+            }
+          } ?: emptyList()
+          if (alarms.isNotEmpty()) {
+            AlarmCountdownService.schedule(this, alarms)
+          } else {
+            AlarmCountdownService.cancel(this)
+          }
+          result.success(null)
+        }
+
+        "cancelCountdown" -> {
+          AlarmCountdownService.cancel(this)
+          result.success(null)
+        }
+
         // Returns {"type": "alarm"|"timer", "name": "..."} while ringing, else null.
         "getRingingAlarm" -> {
           val t = AlarmRingtoneService.ringing_type

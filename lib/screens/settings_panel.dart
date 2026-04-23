@@ -43,6 +43,8 @@ class _SettingsPanelState extends State<_SettingsPanel> {
   late bool              _show_local_time;
   late int               _snooze_mins;
   late int               _add_mins;
+  late bool              _countdown;
+  late int               _countdown_within_hours;
   List<RingtoneEntry>    _ringtones = [];
   bool                   _ringtones_loading = false;
   String?                _previewing;
@@ -72,6 +74,8 @@ class _SettingsPanelState extends State<_SettingsPanel> {
     _show_local_time = cfg.show_local_time;
     _snooze_mins     = cfg.alarm_snooze_minutes;
     _add_mins        = cfg.timer_add_minutes;
+    _countdown       = cfg.alarm_countdown;
+    _countdown_within_hours = cfg.alarm_countdown_within_hours;
     _loadRingtones();
   }
 
@@ -193,6 +197,16 @@ class _SettingsPanelState extends State<_SettingsPanel> {
     widget.svc.setTimerAddMinutes(mins);
   }
 
+  void _setCountdown(bool enabled) {
+    setState(() => _countdown = enabled);
+    widget.svc.setAlarmCountdown(enabled);
+  }
+
+  void _setCountdownWithinHours(int hours) {
+    setState(() => _countdown_within_hours = hours);
+    widget.svc.setAlarmCountdownWithinHours(hours);
+  }
+
   // ── build ──────────────────────────────────────────────────────────────────
 
   @override
@@ -270,6 +284,14 @@ class _SettingsPanelState extends State<_SettingsPanel> {
               selected: _snooze_mins,
               onTap:    _setSnoozeMinutes,
             ),
+            const SizedBox(height: 20),
+            _sectionLabel('Countdown Notification'),
+            const SizedBox(height: 10),
+            _countdownToggle(),
+            const SizedBox(height: 16),
+            _sectionLabel('Show when within'),
+            const SizedBox(height: 10),
+            _hourChips(),
             const SizedBox(height: 20),
             _sectionLabel('Timer Sound'),
             const SizedBox(height: 10),
@@ -723,6 +745,69 @@ Widget _handle() => Column(
                   style: TextStyle(
                     fontSize: 13,
                     color: selected == v ? Colors.white70 : Colors.white38,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      );
+
+  Widget _countdownToggle() => Wrap(
+        spacing: 8,
+        children: [
+          for (final (val, label) in [(true, 'On'), (false, 'Off')])
+            GestureDetector(
+              onTap: () => _setCountdown(val),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                decoration: BoxDecoration(
+                  color: _countdown == val
+                      ? Colors.white12
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _countdown == val
+                        ? Colors.white38
+                        : Colors.white12,
+                  ),
+                ),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: _countdown == val
+                        ? Colors.white
+                        : Colors.white54,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      );
+
+  Widget _hourChips() => Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        children: [
+          for (final v in [1, 3, 6, 12, 24])
+            GestureDetector(
+              onTap: () => _setCountdownWithinHours(v),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                decoration: BoxDecoration(
+                  color: _countdown_within_hours == v ? Colors.white12 : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _countdown_within_hours == v ? Colors.white38 : Colors.white12,
+                  ),
+                ),
+                child: Text(
+                  '${v}h',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: _countdown_within_hours == v ? Colors.white70 : Colors.white38,
                   ),
                 ),
               ),

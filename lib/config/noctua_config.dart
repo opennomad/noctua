@@ -334,6 +334,12 @@ class NoctuaConfig {
   /// How many minutes the "+Xm" timer notification action adds to the timer.
   final int timer_add_minutes;
 
+  /// Whether to show an ongoing "Alarm in Xh Ym" notification.
+  final bool alarm_countdown;
+
+  /// Show countdown notification only when alarm is within this many hours.
+  final int alarm_countdown_within_hours;
+
   const NoctuaConfig({
     required this.screens,
     required this.animation,
@@ -356,6 +362,8 @@ class NoctuaConfig {
     this.night_mode             = false,
     this.alarm_snooze_minutes   = 10,
     this.timer_add_minutes      = 1,
+    this.alarm_countdown       = true,
+    this.alarm_countdown_within_hours = 12,
   });
 
   static NoctuaConfig get defaults => const NoctuaConfig(
@@ -434,6 +442,8 @@ class NoctuaConfig {
       night_mode:            json['night_mode']            as bool?   ?? false,
       alarm_snooze_minutes:  (json['alarm_snooze_minutes'] as num?)?.toInt() ?? 10,
       timer_add_minutes:     (json['timer_add_minutes']    as num?)?.toInt() ?? 1,
+      alarm_countdown:      json['alarm_countdown']       as bool?   ?? true,
+      alarm_countdown_within_hours: (json['alarm_countdown_within_hours'] as num?)?.toInt() ?? 12,
     );
   }
 
@@ -455,6 +465,8 @@ class NoctuaConfig {
         'night_mode':            night_mode,
         'alarm_snooze_minutes':  alarm_snooze_minutes,
         'timer_add_minutes':     timer_add_minutes,
+        'alarm_countdown':      alarm_countdown,
+        'alarm_countdown_within_hours': alarm_countdown_within_hours,
       };
 
   NoctuaConfig copyWith({
@@ -475,6 +487,8 @@ class NoctuaConfig {
     bool?              night_mode,
     int?               alarm_snooze_minutes,
     int?               timer_add_minutes,
+    bool?              alarm_countdown,
+    int?               alarm_countdown_within_hours,
   }) =>
       NoctuaConfig(
         screens:               screens               ?? this.screens,
@@ -492,7 +506,9 @@ class NoctuaConfig {
         color_mode:            color_mode            ?? this.color_mode,
         show_local_time:       show_local_time       ?? this.show_local_time,
         night_mode:            night_mode            ?? this.night_mode,
-        alarm_snooze_minutes:  alarm_snooze_minutes  ?? this.alarm_snooze_minutes,
+alarm_snooze_minutes:  alarm_snooze_minutes  ?? this.alarm_snooze_minutes,
         timer_add_minutes:     timer_add_minutes     ?? this.timer_add_minutes,
+        alarm_countdown:      alarm_countdown      ?? this.alarm_countdown,
+        alarm_countdown_within_hours: alarm_countdown_within_hours ?? this.alarm_countdown_within_hours,
       );
 }

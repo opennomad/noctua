@@ -21,7 +21,7 @@ lib/
     city_list.dart           # 115 curated (city, IANA tz_id) pairs
   screens/
     alarm/
-      alarm_screen.dart      # Alarm list with toggle switches; fade-in + header
+      alarm_screen.dart      # Alarm list with toggle switches; "in Xh Ym" countdown display for enabled alarms; fade-in + header
       alarm_edit_sheet.dart  # Add/edit bottom sheet; showTimePicker (MediaQuery alwaysUse24HourFormat override); day-of-week toggles; shortcode autocomplete on label field
     clock/
       clock_screen.dart          # Shows logo.svg watermark; moon toggle (top-left) enables night mode (dim overlay, no seconds/date)
@@ -29,10 +29,10 @@ lib/
     timer/
       timer_screen.dart
       stopwatch_screen.dart
-    settings_panel.dart      # Bottom sheet: animation, params, font, time format, colour mode (dark/light/system), sound pickers, screen enable/reorder; header shows logo.svg + NOCTUA wordmark
+    settings_panel.dart      # Bottom sheet: animation, params, font, time format, colour mode (dark/light/system), sound pickers, screen enable/reorder, countdown notification settings; header shows logo + NOCTUA + noctua.opennomad.com link; footer has made-by links and Ko-fi/Liberapay
     colour_scheme_sheet.dart # Per-screen hue pickers; Dark + Light sections; opened from settings_panel
   services/
-    alarm_service.dart       # Android: AlarmManager.setAlarmClock() via noctua/alarms MethodChannel; flutter_local_notifications retained only for permission requests; flushPendingLaunchEvent() is a no-op (kept for call-site compat); checkRinging() queries AlarmRingtoneService.ringing_type via getRingingAlarm and emits AlarmEvent.tapped for alarms; notifyTimerDone() starts AlarmRingtoneService via startRingtone; stopRingtone() stops it; Linux: Dart Timer scheduler + paplay subprocess
+    alarm_service.dart       # Android: AlarmManager.setAlarmClock() via noctua/alarms MethodChannel; flutter_local_notifications retained only for permission requests; flushPendingLaunchEvent() is a no-op (kept for call-site compat); checkRinging() queries AlarmRingtoneService.ringing_type via getRingingAlarm and emits AlarmEvent.tapped for alarms; notifyTimerDone() starts AlarmRingtoneService via startRingtone; stopRingtone() stops it; Linux: Dart Timer scheduler + paplay subprocess; countdown notification scheduling via scheduleCountdown/cancelCountdown
     ringtone_service.dart    # RingtoneEntry; list() dispatches to Android MethodChannel or Linux filesystem scan; preview(uri)/stopPreview() — Android Ringtone API, Linux paplay subprocess
     timer_persistence.dart   # TimerSession + TimerSnapshot; save on start/pause/reset/dismiss/expire; restore via deadline_ms on launch
   theme/

@@ -65,17 +65,24 @@ class AlarmService {
 
   // ── lifecycle ─────────────────────────────────────────────────────────────
 
+  static bool _countdown_enabled = true;
+  static int _countdown_within_hours = 12;
+
   static Future<void> init({
     String alarm_sound  = '',
     String timer_sound  = '',
     int    snooze_mins  = 10,
     int    add_mins     = 1,
+    bool   countdown   = true,
+    int    countdown_within_hours = 12,
     List<AlarmConfig> alarms = const [],
   }) async {
     _alarm_sound = alarm_sound;
     _timer_sound = timer_sound;
     _snooze_mins = snooze_mins;
     _add_mins    = add_mins;
+    _countdown_enabled = countdown;
+    _countdown_within_hours = countdown_within_hours;
 
     if (Platform.isLinux) {
       _cancelAllLinux();
@@ -141,6 +148,22 @@ class AlarmService {
     _timer_sound = timer;
     _snooze_mins = snooze_mins;
     _add_mins    = add_mins;
+  }
+
+  static Future<void> setCountdownEnabled(bool enabled, {int within_hours = 12}) async {
+    _countdown_enabled = enabled;
+    _countdown_within_hours = within_hours;
+    if (!enabled) {
+      await cancelCountdown();
+    }
+  }
+
+  static Future<void> cancelCountdown() async {
+    if (!Platform.isAndroid) return;
+    _upcoming_alarms.clear();
+    try {
+      await _alarm_ch.invokeMethod<void>('cancelCountdown');
+    } catch (_) {}
   }
 
   /// No-op — retained for call-site compatibility; replaced by [checkRinging].
@@ -302,6 +325,9 @@ class AlarmService {
 
   // ── private Android helpers ───────────────────────────────────────────────
 
+  // Tracks all upcoming alarms within the countdown threshold.
+  static final List<Map<String, dynamic>> _upcoming_alarms = [];
+
   static Future<void> _scheduleNative({
     required int    req_code,
     required int    epoch_ms,
@@ -312,6 +338,28 @@ class AlarmService {
     int snooze_mins = 10,
     int add_mins    = 1,
   }) async {
+    // For alarm type, also schedule the countdown notification (if enabled
+    // and within the configured hours threshold).
+    if (type == 'alarm' && _countdown_enabled) {
+      final hours_until = (epoch_ms - DateTime.now().millisecondsSinceEpoch) / (1000 * 60 * 60);
+      if (hours_until > 0 && hours_until <= _countdown_within_hours) {
+        // Add to list of upcoming alarms
+        _upcoming_alarms.removeWhere((a) => a['epoch_ms'] == epoch_ms);
+        _upcoming_alarms.add({
+          'epoch_ms': epoch_ms,
+          'name': name,
+        });
+        // Sort by time
+        _upcoming_alarms.sort((a, b) => (a['epoch_ms'] as int).compareTo(b['epoch_ms'] as int));
+
+        try {
+          await _alarm_ch.invokeMethod<void>('scheduleCountdown', {
+            'alarms': _upcoming_alarms,
+          });
+        } catch (_) {}
+      }
+    }
+
     try {
       await _alarm_ch.invokeMethod<void>('scheduleAlarm', {
         'req_code':       req_code,
@@ -330,6 +378,12 @@ class AlarmService {
     try {
       await _alarm_ch.invokeMethod<void>('cancelAlarm', {'req_code': req_code});
     } catch (_) {}
+    // When any alarm is cancelled, cancel the countdown; it will be
+    // rescheduled by _scheduleNative when the next alarm is scheduled.
+    _upcoming_alarms.clear();
+    try {
+      await _alarm_ch.invokeMethod<void>('cancelCountdown');
+    } catch (_) {}
   }
 
   static Future<void> _startRingtone({
@@ -341,6 +395,13 @@ class AlarmService {
     int add_mins    = 1,
     int req_code    = 0,
   }) async {
+    // Cancel countdown notification when alarm fires — let the ringing
+    // notification take over instead of showing two.
+    _upcoming_alarms.clear();
+    try {
+      await _alarm_ch.invokeMethod<void>('cancelCountdown');
+    } catch (_) {}
+
     try {
       await _alarm_ch.invokeMethod<void>('startRingtone', {
         'sound_uri':      sound_uri,
