@@ -54,8 +54,11 @@ class AlarmActivity : Activity() {
     findViewById<Button>(R.id.btn_dismiss).setOnClickListener { dismiss() }
 
     val snooze_btn = findViewById<Button>(R.id.btn_snooze)
+    val add_time_btn = findViewById<Button>(R.id.btn_add_time)
     if (alarmType == "timer") {
       snooze_btn.visibility = View.GONE
+      add_time_btn.visibility = View.VISIBLE
+      add_time_btn.setOnClickListener { addTime() }
     } else {
       snooze_btn.text = "Snooze ${snoozeMins}m"
       snooze_btn.setOnClickListener { snooze() }
@@ -93,6 +96,11 @@ class AlarmActivity : Activity() {
     val snooze_btn = findViewById<Button>(R.id.btn_snooze)
     snooze_btn.background = makeOutlinePill(accent, 24f * density, (1.5f * density).toInt())
     snooze_btn.setTextColor(accent)
+
+    // Add Time: ghost/outline pill, accent text
+    val add_time_btn = findViewById<Button>(R.id.btn_add_time)
+    add_time_btn.background = makeOutlinePill(accent, 24f * density, (1.5f * density).toInt())
+    add_time_btn.setTextColor(accent)
   }
 
   private fun makeSolidPill(color: Int, radius: Float): RippleDrawable {
@@ -173,6 +181,36 @@ class AlarmActivity : Activity() {
     am.setAlarmClock(AlarmManager.AlarmClockInfo(at, showPi), firePi)
 
     AlarmActionReceiver.setPendingAction("snoozed", 0)
+    finish()
+  }
+
+  private fun addTime() {
+    stopService(Intent(this, AlarmRingtoneService::class.java))
+    val add_mins = 1
+    val at = System.currentTimeMillis() + add_mins * 60_000L
+
+    val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+    val firePi = PendingIntent.getBroadcast(
+      this, 88888,
+      Intent(this, AlarmFireReceiver::class.java).apply {
+        putExtra("sound_uri",      soundUri)
+        putExtra("name",           alarmName)
+        putExtra("type",           "timer")
+        putExtra("crescendo_secs", 0)
+        putExtra("snooze_mins",    snoozeMins)
+        putExtra("add_mins",       add_mins)
+        putExtra("req_code",       88888)
+      },
+      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+    val showPi = PendingIntent.getActivity(
+      this, 88888 + 100_000,
+      Intent(this, MainActivity::class.java),
+      PendingIntent.FLAG_IMMUTABLE,
+    )
+    am.setAlarmClock(AlarmManager.AlarmClockInfo(at, showPi), firePi)
+
+    AlarmActionReceiver.setPendingAction("added_minutes:$add_mins", 0)
     finish()
   }
 

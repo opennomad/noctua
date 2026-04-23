@@ -54,7 +54,26 @@
     android:layout_marginStart="40dp"
     android:layout_marginEnd="40dp"
     android:layout_marginBottom="48dp"
-    app:layout_constraintBottom_toTopOf="@id/btn_snooze"
+    app:layout_constraintBottom_toBottomOf="parent"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintStart_toStartOf="parent" />
+
+  <!-- Add Time — narrower ghost pill for timer; hidden for alarm -->
+  <Button
+    android:id="@+id/btn_add_time"
+    android:layout_width="0dp"
+    android:layout_height="48dp"
+    android:text="+1 min"
+    android:textAllCaps="false"
+    android:textSize="15sp"
+    android:letterSpacing="0.03"
+    android:textColor="#FFFFFFFF"
+    android:stateListAnimator="@null"
+    android:layout_marginStart="80dp"
+    android:layout_marginEnd="80dp"
+    android:layout_marginBottom="16dp"
+    android:visibility="gone"
+    app:layout_constraintBottom_toTopOf="@id/btn_dismiss"
     app:layout_constraintEnd_toEndOf="parent"
     app:layout_constraintStart_toStartOf="parent" />
 
@@ -71,8 +90,8 @@
     android:stateListAnimator="@null"
     android:layout_marginStart="80dp"
     android:layout_marginEnd="80dp"
-    android:layout_marginBottom="80dp"
-    app:layout_constraintBottom_toBottomOf="parent"
+    android:layout_marginBottom="16dp"
+    app:layout_constraintBottom_toTopOf="@id/btn_dismiss"
     app:layout_constraintEnd_toEndOf="parent"
     app:layout_constraintStart_toStartOf="parent" />
 
