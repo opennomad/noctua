@@ -26,7 +26,7 @@ class MainActivity : FlutterActivity() {
     private const val SHOW_RC_OFFSET = 100_000
   }
 
-  // Apply flags that let this Activity appear over the lock screen.
+// Apply flags that let this Activity appear over the lock screen.
   // Must be called in both onCreate (cold start) and onNewIntent (warm raise).
   private fun applyLockScreenFlags() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
@@ -36,7 +36,20 @@ class MainActivity : FlutterActivity() {
       @Suppress("DEPRECATION")
       window.addFlags(
         WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+          WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+      )
+    }
+  }
+
+  private fun clearLockScreenFlags() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+      setShowWhenLocked(false)
+      setTurnScreenOn(false)
+    } else {
+      @Suppress("DEPRECATION")
+      window.clearFlags(
+        WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+          WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
       )
     }
   }
@@ -44,6 +57,16 @@ class MainActivity : FlutterActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     applyLockScreenFlags()
+  }
+
+  override fun onResume() {
+    super.onResume()
+    applyLockScreenFlags()
+  }
+
+  override fun onPause() {
+    super.onPause()
+    clearLockScreenFlags()
   }
 
   // Called when AlarmFireReceiver (or a notification button) raises the already-

@@ -200,7 +200,11 @@ class AlarmService {
       if (info == null) return;
       final type = (info['type'] as String?) ?? '';
       final name = (info['name'] as String?) ?? '';
-      // Timer fires are handled by the timer screen via didChangeAppLifecycleState.
+      // When dismissed via notification action, stop the ringing service.
+      // (The pending action was already consumed above — we just need to stop the sound.)
+      if (type == 'timer' || type == 'alarm') {
+        await stopRingtone();
+      }
       if (type == 'alarm') {
         _event_ctrl.add(AlarmEvent.tapped(name, _ringing_notif_id));
       }
@@ -321,6 +325,19 @@ class AlarmService {
   static Future<void> stopRingtone() async {
     if (!Platform.isAndroid) return;
     try { await _alarm_ch.invokeMethod<void>('stopRingtone'); } catch (_) {}
+  }
+
+  /// Returns the current ringing alarm info if an alarm/timer is ringing, else null.
+  static Future<Map<String, String>?> getRingingAlarm() async {
+    if (!Platform.isAndroid) return null;
+    try {
+      final info = await _alarm_ch.invokeMethod<Map>('getRingingAlarm');
+      if (info == null) return null;
+      return {
+        'type': (info['type'] as String?) ?? '',
+        'name': (info['name'] as String?) ?? '',
+      };
+    } catch (_) { return null; }
   }
 
   // ── private Android helpers ───────────────────────────────────────────────

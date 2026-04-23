@@ -179,9 +179,10 @@ class _NoctuaHomeState extends State<NoctuaHome> with WidgetsBindingObserver {
     if (!kb.enabled) return false;
 
     final label = _buildKeyLabel(event);
+    final key  = event.logicalKey;
 
     // Quit is handled before any focus guard — it always works.
-    if (label == kb.quit) { _quit(); return true; }
+    if (label == kb.quit || _matchesQuit(key)) { _quit(); return true; }
 
     // Don't navigate while a modal/sheet/dialog is in front.
     if (_nav_key.currentState?.canPop() ?? false) return false;
@@ -191,10 +192,20 @@ class _NoctuaHomeState extends State<NoctuaHome> with WidgetsBindingObserver {
       return false;
     }
 
-    if (label == kb.nav_next) { _stack_ctrl.goNext(); return true; }
-    if (label == kb.nav_prev) { _stack_ctrl.goPrev(); return true; }
+    if (label == kb.nav_next || _matchesNavNext(key)) { _stack_ctrl.goNext(); return true; }
+    if (label == kb.nav_prev || _matchesNavPrev(key)) { _stack_ctrl.goPrev(); return true; }
     return false;
   }
+
+  static bool _matchesQuit(LogicalKeyboardKey key) =>
+      key == LogicalKeyboardKey.keyQ &&
+      HardwareKeyboard.instance.isControlPressed;
+
+  static bool _matchesNavNext(LogicalKeyboardKey key) =>
+      key == LogicalKeyboardKey.arrowRight;
+
+  static bool _matchesNavPrev(LogicalKeyboardKey key) =>
+      key == LogicalKeyboardKey.arrowLeft;
 
   Widget _buildScreen(String id) => switch (id) {
     'clock'       => ClockScreen(config_service: widget.config_service),

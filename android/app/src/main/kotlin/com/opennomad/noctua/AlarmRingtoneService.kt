@@ -97,7 +97,7 @@ class AlarmRingtoneService : Service() {
       this, 0,
       Intent(this, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                Intent.FLAG_ACTIVITY_CLEAR_TASK or
                 Intent.FLAG_ACTIVITY_SINGLE_TOP
       },
       PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
@@ -124,6 +124,7 @@ class AlarmRingtoneService : Service() {
       .setContentIntent(tap_pi)
       .setFullScreenIntent(tap_pi, true)
       .setCategory(Notification.CATEGORY_ALARM)
+      .setPriority(Notification.PRIORITY_MAX)
       .setOngoing(true)
       .setOnlyAlertOnce(true)
       .addAction(buildAction(0, "Dismiss", dismiss_pi))

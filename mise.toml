@@ -28,6 +28,14 @@ description = "run the app on android"
 # run = "flutter run -d R5CT615C3JJ" 
 run = "flutter run"
 
+[tasks.list-devices]
+description = "list adb and flutter devices"
+run = '''
+echo "===== ADB ====="
+adb devices
+echo "===== Flutter ====="
+flutter devices
+'''
 [tasks.clear-adb]
 description = "restart adb server"
 run = '''

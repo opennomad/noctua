@@ -91,10 +91,14 @@ class _TimerScreenState extends State<TimerScreen>
   void _checkExpiredOnResume() {
     final s = _active;
     if (s.done) {
-      // Already expired — play sound in case it isn't already playing.
-      AlarmService.cancelTimerEnd(
-        _active_id,
-      ).then((_) => AlarmService.notifyTimerDone(_timerName(_active_id)));
+      // Already expired — check if alarm is still ringing before restarting.
+      // If user dismissed via notification, the sound is already stopped.
+      AlarmService.cancelTimerEnd(_active_id).then((_) async {
+        final ringing = await AlarmService.getRingingAlarm();
+        if (ringing != null) {
+          AlarmService.notifyTimerDone(_timerName(_active_id));
+        }
+      });
       return;
     }
     if (!s.is_running || s.deadline_ms == null) return;
