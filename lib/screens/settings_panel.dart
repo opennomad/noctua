@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../config/config_service.dart';
 import '../services/ringtone_service.dart';
 import '../theme/fonts.dart';
@@ -205,18 +206,21 @@ class _SettingsPanelState extends State<_SettingsPanel> {
         24, 12, 24,
         24 + MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: ScrollConfiguration(
-        behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
-        child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _handle(),
-            const SizedBox(height: 8),
-            _sectionLabel('Animation'),
-            const SizedBox(height: 10),
-            _animationChips(),
+      child: Column(
+        children: [
+          _handle(),
+          const SizedBox(height: 16),
+          Expanded(
+            child: ScrollConfiguration(
+              behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _sectionLabel('Animation'),
+                    const SizedBox(height: 10),
+                    _animationChips(),
             const SizedBox(height: 20),
             _sectionLabel('Speed'),
             _slider(
@@ -289,40 +293,123 @@ class _SettingsPanelState extends State<_SettingsPanel> {
             const SizedBox(height: 6),
             _screenList(),
             const SizedBox(height: 4),
-          ],
-        ),
-      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          _madeBySection(),
+        ],
       ),
     );
   }
 
   // ── sub-widgets ────────────────────────────────────────────────────────────
 
-  Widget _handle() => Row(
+  Widget _madeBySection() => Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          SvgPicture.asset('assets/logo.svg', width: 30, height: 30),
-          const SizedBox(width: 10),
-          const Text(
-            'NOCTUA',
-            style: TextStyle(
-              color: Colors.white38,
-              fontSize: 12,
-              letterSpacing: 3.5,
-              fontWeight: FontWeight.w300,
-            ),
+          const Divider(color: Color(0x1AFFFFFF), thickness: 1),
+          const SizedBox(height: 16),
+          Text(
+            'Made by',
+            style: TextStyle(color: Colors.white.withAlpha(77), fontSize: 11, letterSpacing: 1),
           ),
-          const Spacer(),
-          SizedBox(
-            width: 44,
-            height: 44,
-            child: IconButton(
-              icon: const Icon(Icons.close, size: 20, color: Colors.white54),
-              onPressed: () => Navigator.pop(context),
-              tooltip: 'Close',
-              padding: EdgeInsets.zero,
-            ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            alignment: WrapAlignment.center,
+            children: [
+              _linkPill('🌈 opennomad', 'https://opennomad.com'),
+              _linkPill('Codeberg', 'https://codeberg.org/opennomad'),
+              _linkPill('GitHub', 'https://github.com/opennomad'),
+            ],
           ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            alignment: WrapAlignment.center,
+            children: [
+              Text(
+                'A cup of coffee helps',
+                style: TextStyle(color: Colors.white.withAlpha(77), fontSize: 12),
+              ),
+              _linkPill('☕ Ko-fi', 'https://ko-fi.com/opennomad'),
+              _linkPill('❤️ Liberapay', 'https://liberapay.com/opennomad'),
+            ],
+          ),
+          const SizedBox(height: 16),
         ],
+      );
+
+  Widget _linkPill(String label, String url) => GestureDetector(
+        onTap: () => launchUrl(Uri.parse(url)),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.white12),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white54,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      );
+
+Widget _handle() => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              SvgPicture.asset('assets/logo.svg', width: 40, height: 40),
+              const SizedBox(width: 10),
+              const Text(
+                'NOCTUA',
+                style: TextStyle(
+                  color: Colors.white38,
+                  fontSize: 18,
+                  letterSpacing: 3.5,
+                  fontWeight: FontWeight.w300,
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.close, size: 20, color: Colors.white54),
+                onPressed: () => Navigator.pop(context),
+                tooltip: 'Close',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _linkButton('noctua.opennomad.com', 'https://noctua.opennomad.com'),
+        ],
+      );
+
+  Widget _linkButton(String label, String url) => GestureDetector(
+        onTap: () => launchUrl(Uri.parse(url)),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.white12),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white54,
+              fontSize: 14,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ),
       );
 
   Widget _sectionLabel(String text) => Padding(
@@ -699,6 +786,7 @@ class _SettingsPanelState extends State<_SettingsPanel> {
 
   Widget _animationChips() => Wrap(
         spacing: 8,
+        runSpacing: 8,
         children: [
           for (final (val, label) in _anim_options)
             _styledChip(label: label, selected: _animation == val,
