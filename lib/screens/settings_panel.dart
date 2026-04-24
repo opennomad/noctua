@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../config/config_service.dart';
 import '../services/ringtone_service.dart';
@@ -199,6 +200,8 @@ class _SettingsPanelState extends State<_SettingsPanel> {
     setState(() => _countdown_within_hours = hours);
     widget.svc.setAlarmCountdownWithinHours(hours);
   }
+
+  Future<PackageInfo> _getPackageInfo() => PackageInfo.fromPlatform();
 
   // ── build ──────────────────────────────────────────────────────────────────
 
@@ -402,14 +405,40 @@ Widget _handle() => Column(
             children: [
               SvgPicture.asset('assets/logo.svg', width: 40, height: 40),
               const SizedBox(width: 10),
-              const Text(
-                'NOCTUA',
-                style: TextStyle(
-                  color: Colors.white38,
-                  fontSize: 18,
-                  letterSpacing: 3.5,
-                  fontWeight: FontWeight.w300,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  const Text(
+                    'NOCTUA',
+                    style: TextStyle(
+                      color: Colors.white38,
+                      fontSize: 18,
+                      letterSpacing: 3.5,
+                      fontWeight: FontWeight.w300,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  FutureBuilder<String>(
+                    future: () async {
+                      try {
+                        final pkg = await _getPackageInfo();
+                        return pkg.version;
+                      } catch (_) {
+                        return '';
+                      }
+                    }(),
+                    builder: (ctx, snap) => Text(
+                      snap.data ?? '',
+                      style: const TextStyle(
+                        color: Colors.white24,
+                        fontSize: 11,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const Spacer(),
               IconButton(
