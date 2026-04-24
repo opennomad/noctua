@@ -1,6 +1,14 @@
 # Changelog
 
-## 0.2.1 (2026-04-24)
+## 0.2.2 (2026-04-24)
+
+### Added
+
+- Runtime check that warns user if fullscreen intent permission has been revoked
+
+### Changed
+
+- Show running timers in the ongoing countdown notification alongside alarms
 
 ### Changed
 
