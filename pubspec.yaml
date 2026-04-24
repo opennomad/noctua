@@ -73,6 +73,8 @@ flutter:
 
   assets:
     - assets/logo.svg
+    - assets/codeberg.svg
+    - assets/github.svg
 
   shaders:
     - assets/shaders/bubbles.frag

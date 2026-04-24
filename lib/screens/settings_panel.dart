@@ -328,55 +328,61 @@ class _SettingsPanelState extends State<_SettingsPanel> {
 
   // ── sub-widgets ────────────────────────────────────────────────────────────
 
-  Widget _madeBySection() => Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const Divider(color: Color(0x1AFFFFFF), thickness: 1),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Made by ',
-                style: TextStyle(color: Colors.white.withAlpha(77), fontSize: 11, letterSpacing: 1),
-              ),
-              _linkPill('🌈 opennomad', 'https://opennomad.com'),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Source ',
-                style: TextStyle(color: Colors.white.withAlpha(77), fontSize: 11, letterSpacing: 1),
-              ),
-              _linkPill('Codeberg', 'https://codeberg.org/opennomad', icon: Icons.source),
-              const SizedBox(width: 8),
-              _linkPill('GitHub', 'https://github.com/opennomad', icon: Icons.code),
-            ],
-          ),
-          const SizedBox(height: 3),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Support ',
-                style: TextStyle(color: Colors.white.withAlpha(77), fontSize: 11, letterSpacing: 1),
-              ),
-              _linkPill('☕ Ko-fi', 'https://ko-fi.com/opennomad'),
-              const SizedBox(width: 8),
-              _linkPill('❤️ Liberapay', 'https://liberapay.com/opennomad'),
-            ],
-          ),
-          const SizedBox(height: 12),
-        ],
+  Widget _madeBySection() => Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF13131F),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Made by ',
+                  style: TextStyle(color: Colors.white.withAlpha(77), fontSize: 11, letterSpacing: 1),
+                ),
+                _linkPill('🌈 opennomad', 'https://opennomad.com'),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Source ',
+                  style: TextStyle(color: Colors.white.withAlpha(77), fontSize: 11, letterSpacing: 1),
+                ),
+                _linkPill('Codeberg', 'https://codeberg.org/opennomad', svgAsset: 'assets/codeberg.svg'),
+                const SizedBox(width: 8),
+                _linkPill('GitHub', 'https://github.com/opennomad', svgAsset: 'assets/github.svg'),
+              ],
+            ),
+            const SizedBox(height: 3),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Support ',
+                  style: TextStyle(color: Colors.white.withAlpha(77), fontSize: 11, letterSpacing: 1),
+                ),
+                _linkPill('☕ Ko-fi', 'https://ko-fi.com/opennomad'),
+                const SizedBox(width: 8),
+                _linkPill('❤️ Liberapay', 'https://liberapay.com/opennomad'),
+              ],
+            ),
+            const SizedBox(height: 6),
+          ],
+        ),
       );
 
-  Widget _linkPill(String label, String url, {IconData? icon}) => GestureDetector(
+  Widget _linkPill(String label, String url, {String? svgAsset}) => GestureDetector(
         onTap: () => launchUrl(Uri.parse(url)),
         child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 10, vertical: icon != null ? 4 : 6),
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: svgAsset != null ? 4 : 6),
           decoration: BoxDecoration(
             border: Border.all(color: Colors.white12),
             borderRadius: BorderRadius.circular(16),
@@ -384,8 +390,8 @@ class _SettingsPanelState extends State<_SettingsPanel> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (icon != null) ...[
-                Icon(icon, size: 12, color: Colors.white54),
+              if (svgAsset != null) ...[
+                SvgPicture.asset(svgAsset, width: 12, height: 12),
                 const SizedBox(width: 4),
               ],
               Text(
