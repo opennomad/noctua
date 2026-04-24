@@ -223,6 +223,7 @@ class MainActivity : FlutterActivity() {
 
         "scheduleCountdown" -> {
           val alarms_raw = call.argument<List<*>>("alarms")
+          val timers_raw = call.argument<List<*>>("timers")
           val alarms: List<Map<String, Any>> = alarms_raw?.mapNotNull { item ->
             (item as? Map<*, *>)?.let { map ->
               mapOf(
@@ -231,8 +232,16 @@ class MainActivity : FlutterActivity() {
               )
             }
           } ?: emptyList()
-          if (alarms.isNotEmpty()) {
-            AlarmCountdownService.schedule(this, alarms)
+          val timers: List<Map<String, Any>> = timers_raw?.mapNotNull { item ->
+            (item as? Map<*, *>)?.let { map ->
+              mapOf(
+                "name" to (map["name"] as? String ?: ""),
+                "epoch_ms" to ((map["epoch_ms"] as? Number)?.toLong() ?: 0L)
+              )
+            }
+          } ?: emptyList()
+          if (alarms.isNotEmpty() || timers.isNotEmpty()) {
+            AlarmCountdownService.schedule(this, alarms, timers)
           } else {
             AlarmCountdownService.cancel(this)
           }

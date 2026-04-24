@@ -10,9 +10,9 @@ import android.os.Looper
 import androidx.core.app.NotificationCompat
 
 /**
- * Shows a persistent notification while alarms are scheduled within the threshold.
- * If multiple alarms, shows them as a list.
- * Tapping opens the app directly to the alarm screen.
+ * Shows a persistent notification while alarms or timers are scheduled within
+ * the threshold. If multiple items, shows them as a list.
+ * Tapping opens the app directly to the alarm or timer screen.
  * 
  * Uses regular notifications (not foreground service) to avoid background-start 
  * restrictions on Android 14+.
@@ -25,15 +25,17 @@ class AlarmCountdownService : android.app.Service() {
 
     @Volatile var is_scheduled = false
     @Volatile var pending_alarms: List<Map<String, Any>> = emptyList()
+    @Volatile var pending_timers: List<Map<String, Any>> = emptyList()
 
-    fun schedule(app: android.content.Context, alarms: List<Map<String, Any>>) {
+    fun schedule(app: android.content.Context, alarms: List<Map<String, Any>>, timers: List<Map<String, Any>>) {
       pending_alarms = alarms
+      pending_timers = timers
       is_scheduled = true
       
       Handler(Looper.getMainLooper()).post {
         try {
           val nm = app.getSystemService(NotificationManager::class.java)
-          nm.notify(NOTIF_ID, buildNotification(app, alarms))
+          nm.notify(NOTIF_ID, buildNotification(app, alarms, timers))
         } catch (e: Exception) {
           // Ignore
         }
@@ -45,6 +47,7 @@ class AlarmCountdownService : android.app.Service() {
     fun cancel(app: android.content.Context) {
       is_scheduled = false
       pending_alarms = emptyList()
+      pending_timers = emptyList()
       try {
         val nm = app.getSystemService(NotificationManager::class.java)
         nm.cancel(NOTIF_ID)
@@ -53,31 +56,53 @@ class AlarmCountdownService : android.app.Service() {
       }
     }
 
-    private fun buildNotification(app: android.content.Context, alarms: List<Map<String, Any>>): Notification {
-      val text = if (alarms.size == 1) {
-        val alarm = alarms[0]
-        val label = alarm["name"] as? String ?: ""
-        val epoch_ms = (alarm["epoch_ms"] as? Number)?.toLong() ?: 0L
-        val title = label.ifEmpty { "Alarm" }
-        "$title • ${formatRemaining(epoch_ms)}"
-      } else {
-        // Multiple alarms — show count
-        "${alarms.size} alarms"
+    private fun buildNotification(app: android.content.Context, alarms: List<Map<String, Any>>, timers: List<Map<String, Any>>): Notification {
+      val has_alarms = alarms.isNotEmpty()
+      val has_timers = timers.isNotEmpty()
+
+      val title = when {
+        !has_alarms && !has_timers -> "Countdown"
+        has_alarms && has_timers -> "Upcoming"
+        has_alarms -> "Alarm"
+        else -> "Timer"
       }
 
+      val lines = mutableListOf<String>()
+
+      if (has_alarms) {
+        lines.add("Alarms")
+        alarms.forEach { alarm ->
+          val name = (alarm["name"] as? String)?.ifEmpty { null }
+          val epoch_ms = (alarm["epoch_ms"] as? Number)?.toLong() ?: 0L
+          lines.add("  • ${name ?: "Alarm"} • ${formatRemaining(epoch_ms)}")
+        }
+      }
+      if (has_timers) {
+        lines.add("Timers")
+        timers.forEach { timer ->
+          val name = (timer["name"] as? String)?.ifEmpty { null }
+          val epoch_ms = (timer["epoch_ms"] as? Number)?.toLong() ?: 0L
+          lines.add("  • ${name ?: "Timer"} • ${formatRemaining(epoch_ms)}")
+        }
+      }
+
+      val text = if (lines.size <= 3) lines.joinToString("\n") else "${lines.size} items"
+
+      // ContentIntent: go to alarm screen if there are alarms, otherwise timer screen
+      val dest = if (has_alarms) "alarm" else "timer"
       val tap_pi = PendingIntent.getActivity(
         app, 0,
         Intent(app, MainActivity::class.java).apply {
           flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                   Intent.FLAG_ACTIVITY_CLEAR_TOP or
                   Intent.FLAG_ACTIVITY_SINGLE_TOP
-          putExtra("screen", "alarm")
+          putExtra("screen", dest)
         },
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
       )
 
-      val channel = NotificationChannel(CHANNEL, "Alarm countdown", NotificationManager.IMPORTANCE_LOW).apply {
-        description = "Shows time remaining until alarm"
+      val channel = NotificationChannel(CHANNEL, "Alarm & Timer countdown", NotificationManager.IMPORTANCE_LOW).apply {
+        description = "Shows time remaining until alarm or timer"
         setShowBadge(false)
       }
 
@@ -86,32 +111,28 @@ class AlarmCountdownService : android.app.Service() {
         nm.createNotificationChannel(channel)
       }
 
-      return NotificationCompat.Builder(app, CHANNEL)
+      val builder = NotificationCompat.Builder(app, CHANNEL)
         .setSmallIcon(R.drawable.ic_alarm)
-        .setContentTitle("Alarm")
+        .setContentTitle(title)
         .setContentText(text)
-        .setContentInfo(if (alarms.isNotEmpty()) "Alarm in" else null)
         .setContentIntent(tap_pi)
         .setOngoing(true)
         .setOnlyAlertOnce(true)
         .setPriority(NotificationCompat.PRIORITY_LOW)
         .setCategory(NotificationCompat.CATEGORY_ALARM)
-        .setStyle(
-          if (alarms.size > 1) {
-            NotificationCompat.InboxStyle().also { style ->
-              alarms.take(5).forEach { alarm ->
-                val label = alarm["name"] as? String ?: ""
-                val epoch_ms = (alarm["epoch_ms"] as? Number)?.toLong() ?: 0L
-                val title = label.ifEmpty { "Alarm" }
-                style.addLine("$title • ${formatRemaining(epoch_ms)}")
-              }
-              if (alarms.size > 5) {
-                style.setSummaryText("+${alarms.size - 5} more")
-              }
+
+      if (lines.size > 3 || (has_alarms && has_timers)) {
+        builder.setStyle(
+          NotificationCompat.InboxStyle().also { style ->
+            lines.take(6).forEach { style.addLine(it) }
+            if (lines.size > 6) {
+              style.setSummaryText("+${lines.size - 6} more")
             }
-          } else null
+          }
         )
-        .build()
+      }
+
+      return builder.build()
     }
 
     private fun formatRemaining(epoch_ms: Long): String {
@@ -133,15 +154,16 @@ class AlarmCountdownService : android.app.Service() {
 
     private fun scheduleUpdate(app: android.content.Context) {
       Handler(Looper.getMainLooper()).postDelayed({
-        // Remove any alarms that have passed
         val now = System.currentTimeMillis()
-        val active = pending_alarms.filter { (it["epoch_ms"] as? Number)?.toLong() ?: 0L > now }
+        val active_alarms = pending_alarms.filter { (it["epoch_ms"] as? Number)?.toLong() ?: 0L > now }
+        val active_timers = pending_timers.filter { (it["epoch_ms"] as? Number)?.toLong() ?: 0L > now }
         
-        if (is_scheduled && active.isNotEmpty()) {
-          pending_alarms = active
+        if (is_scheduled && (active_alarms.isNotEmpty() || active_timers.isNotEmpty())) {
+          pending_alarms = active_alarms
+          pending_timers = active_timers
           try {
             val nm = app.getSystemService(NotificationManager::class.java)
-            nm.notify(NOTIF_ID, buildNotification(app, active))
+            nm.notify(NOTIF_ID, buildNotification(app, active_alarms, active_timers))
           } catch (e: Exception) {
             // Ignore
           }

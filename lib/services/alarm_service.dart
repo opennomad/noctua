@@ -307,6 +307,27 @@ class AlarmService {
   static Future<void> scheduleTimerEnd(
       String id, Duration remaining, String name) async {
     if (!Platform.isAndroid) return;
+
+    if (_countdown_enabled) {
+      final hours_until = remaining.inMinutes / 60.0;
+      if (hours_until <= _countdown_within_hours) {
+        final at = DateTime.now().add(remaining);
+        _upcoming_timers.removeWhere((t) => t['id'] == id);
+        _upcoming_timers.add({
+          'id': id,
+          'epoch_ms': at.millisecondsSinceEpoch,
+          'name': name.isEmpty ? 'Timer done' : name,
+        });
+        _upcoming_timers.sort((a, b) => (a['epoch_ms'] as int).compareTo(b['epoch_ms'] as int));
+        try {
+          await _alarm_ch.invokeMethod<void>('scheduleCountdown', {
+            'alarms': _upcoming_alarms,
+            'timers': _upcoming_timers,
+          });
+        } catch (_) {}
+      }
+    }
+
     final at = DateTime.now().add(remaining);
     await _scheduleNative(
       req_code:       _tnid(id),
@@ -322,6 +343,7 @@ class AlarmService {
 
   static Future<void> cancelTimerEnd(String id) async {
     if (!Platform.isAndroid) return;
+    _upcoming_timers.removeWhere((t) => t['id'] == id);
     await _cancelAndroid(_tnid(id));
   }
 
@@ -373,6 +395,9 @@ class AlarmService {
   // Tracks all upcoming alarms within the countdown threshold.
   static final List<Map<String, dynamic>> _upcoming_alarms = [];
 
+  // Tracks all running timers within the countdown threshold.
+  static final List<Map<String, dynamic>> _upcoming_timers = [];
+
   static Future<void> _scheduleNative({
     required int    req_code,
     required int    epoch_ms,
@@ -400,6 +425,7 @@ class AlarmService {
         try {
           await _alarm_ch.invokeMethod<void>('scheduleCountdown', {
             'alarms': _upcoming_alarms,
+            'timers': _upcoming_timers,
           });
         } catch (_) {}
       }
@@ -423,9 +449,6 @@ class AlarmService {
     try {
       await _alarm_ch.invokeMethod<void>('cancelAlarm', {'req_code': req_code});
     } catch (_) {}
-    // When any alarm is cancelled, cancel the countdown; it will be
-    // rescheduled by _scheduleNative when the next alarm is scheduled.
-    _upcoming_alarms.clear();
     try {
       await _alarm_ch.invokeMethod<void>('cancelCountdown');
     } catch (_) {}
