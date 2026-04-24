@@ -34,7 +34,6 @@ class _SettingsPanelState extends State<_SettingsPanel> {
   late double            _direction;
   late List<ScreenSlot>  _screens;
   late String            _font;
-  late String            _pill_edge;
   late KeyBindings       _kb;
   late String            _time_format;
   late String            _alarm_sound;
@@ -65,7 +64,6 @@ class _SettingsPanelState extends State<_SettingsPanel> {
     _loadParamsFromConfig(cfg, cfg.animation);
     _screens   = List<ScreenSlot>.from(cfg.screens);
     _font      = cfg.font;
-    _pill_edge   = cfg.timer_pill_edge;
     _kb          = cfg.key_bindings;
     _time_format = cfg.time_format;
     _alarm_sound = cfg.alarm_sound;
@@ -150,11 +148,6 @@ class _SettingsPanelState extends State<_SettingsPanel> {
       _screens.insert(new_index, item);
     });
     widget.svc.setScreens(List<ScreenSlot>.from(_screens));
-  }
-
-  void _setPillEdge(String val) {
-    setState(() => _pill_edge = val);
-    widget.svc.setTimerPillEdge(val);
   }
 
   void _setKeyBindings(KeyBindings kb) {
@@ -306,10 +299,6 @@ class _SettingsPanelState extends State<_SettingsPanel> {
             ),
             const SizedBox(height: 20),
             _keyboardSection(),
-            const SizedBox(height: 20),
-            _sectionLabel('Timer Pills'),
-            const SizedBox(height: 10),
-            _pillEdgeChips(),
             const SizedBox(height: 20),
             _sectionLabel('Screens'),
             const SizedBox(height: 6),
@@ -536,12 +525,6 @@ Widget _handle() => Column(
           ],
         ),
       );
-
-  static const _pill_edge_options = [
-    ('left',   'Left',   Icons.border_left),
-    ('right',  'Right',  Icons.border_right),
-    ('bottom', 'Bottom', Icons.border_bottom),
-  ];
 
   Widget _soundPicker(String current_uri, ValueChanged<String> on_select) {
     if (_ringtones_loading) {
@@ -831,52 +814,6 @@ Widget _handle() => Column(
                     fontSize: 13,
                     color: _countdown_within_hours == v ? Colors.white70 : Colors.white38,
                   ),
-                ),
-              ),
-            ),
-        ],
-      );
-
-  Widget _pillEdgeChips() => Wrap(
-        spacing: 8,
-        children: [
-          for (final (val, label, icon) in _pill_edge_options)
-            GestureDetector(
-              onTap: () => _setPillEdge(val),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                decoration: BoxDecoration(
-                  color: _pill_edge == val
-                      ? Colors.white12
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: _pill_edge == val
-                        ? Colors.white38
-                        : Colors.white12,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(icon,
-                        size: 14,
-                        color: _pill_edge == val
-                            ? Colors.white
-                            : Colors.white54),
-                    const SizedBox(width: 6),
-                    Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: _pill_edge == val
-                            ? Colors.white
-                            : Colors.white54,
-                      ),
-                    ),
-                  ],
                 ),
               ),
             ),

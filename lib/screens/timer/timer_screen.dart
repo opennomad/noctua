@@ -493,23 +493,15 @@ class _TimerScreenState extends State<TimerScreen>
 
   @override
   Widget build(BuildContext context) {
-    final edge = widget.config_service.config.timer_pill_edge;
-    final is_side = edge == 'left' || edge == 'right';
+    const edge = 'left';
+    const is_side = true;
 
     final pills = FadeTransition(
       opacity: _pill_ctrl,
       child: _pillStrip(is_side),
     );
 
-    final Widget positioned;
-    switch (edge) {
-      case 'right':
-        positioned = Positioned(right: 0, top: 0, bottom: 0, child: pills);
-      case 'bottom':
-        positioned = Positioned(left: 0, right: 0, bottom: 0, child: pills);
-      default: // 'left'
-        positioned = Positioned(left: 0, top: 0, bottom: 0, child: pills);
-    }
+    final positioned = Positioned(left: 0, top: 0, bottom: 0, child: pills);
 
     return Listener(
       behavior: HitTestBehavior.opaque,
