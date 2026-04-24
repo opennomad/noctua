@@ -17,11 +17,10 @@ class AlarmDismissSheet extends StatelessWidget {
           color: Color(0xFF1A1A2E),
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 48),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // handle bar
             Center(
               child: Container(
                 width: 40,
@@ -32,60 +31,71 @@ class AlarmDismissSheet extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 28),
-            Icon(Icons.alarm, size: 44, color: Colors.white.withAlpha(180)),
-            const SizedBox(height: 16),
-            Text(
-              display,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w300,
-                color: Colors.white,
-                letterSpacing: 1,
-              ),
-            ),
-            const SizedBox(height: 36),
+            const SizedBox(height: 12),
             Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.snooze, size: 18),
-                    label: const Text('Snooze 10m'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white70,
-                      side: const BorderSide(color: Colors.white24),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
+                Icon(Icons.alarm, size: 22, color: Colors.white.withAlpha(180)),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    display,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w300,
+                      color: Colors.white,
                     ),
-                    onPressed: () {
-                      AlarmService.cancelAlarmNotif(notif_id);
-                      Navigator.pop(context);
-                      AlarmService.scheduleSnooze(label);
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.alarm_off, size: 18),
-                    label: const Text('Dismiss'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white24,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                    ),
-                    onPressed: () {
-                      AlarmService.cancelAlarmNotif(notif_id);
-                      Navigator.pop(context);
-                    },
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.snooze, size: 16),
+                      label: const Text('Snooze 10m'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white70,
+                        side: const BorderSide(color: Colors.white24),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () {
+                        AlarmService.cancelAlarmNotif(notif_id);
+                        Navigator.pop(context);
+                        AlarmService.scheduleSnooze(label);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.alarm_off, size: 16),
+                      label: const Text('Dismiss'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white24,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () {
+                        AlarmService.cancelAlarmNotif(notif_id);
+                        Navigator.pop(context);
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

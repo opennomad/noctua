@@ -540,10 +540,11 @@ class _TimerScreenState extends State<TimerScreen>
     return LayoutBuilder(
       builder: (context, constraints) {
         final tight = constraints.maxHeight < 320;
+        final very_tight = constraints.maxHeight < 260;
         return Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            if (saved_name != null) ...[
+            if (saved_name != null && !very_tight) ...[
               Text(
                 saved_name,
                 style: TextStyle(
@@ -556,9 +557,9 @@ class _TimerScreenState extends State<TimerScreen>
               SizedBox(height: tight ? 4 : 10),
             ],
             main_display,
-            SizedBox(height: tight ? 16 : 48),
-            _controls(s),
-            if (edge == 'bottom') SizedBox(height: tight ? 40 : 80),
+            SizedBox(height: very_tight ? 8 : (tight ? 16 : 48)),
+            _controls(s, very_tight: very_tight),
+            if (edge == 'bottom') SizedBox(height: very_tight ? 16 : (tight ? 40 : 80)),
           ],
         );
       },
@@ -679,25 +680,24 @@ class _TimerScreenState extends State<TimerScreen>
 
   // ── controls ───────────────────────────────────────────────────────────────
 
-  Widget _controls(_TState s) {
+  Widget _controls(_TState s, {bool very_tight = false}) {
     final show_picker = s.is_idle && _active_id == _scratch;
 
-    // Fixed-width flanking slots keep the centre button visually centred.
     Widget left_slot() => SizedBox(
-      width: 64,
+      width: very_tight ? 48 : 64,
       child: (!s.done && !s.is_idle)
           ? Center(
-              child: _IconBtn(icon: Icons.refresh, onTap: _reset, size: 28),
+              child: _IconBtn(icon: Icons.refresh, onTap: _reset, size: very_tight ? 22 : 28),
             )
           : null,
     );
 
     Widget right_slot() => SizedBox(
-      width: 64,
+      width: very_tight ? 48 : 64,
       child: (s.done || show_picker)
           ? null
           : Center(
-              child: _PillBtn(label: '+1m', onTap: _addMinute),
+              child: _PillBtn(label: '+1m', onTap: _addMinute, very_tight: very_tight),
             ),
     );
 
@@ -711,6 +711,7 @@ class _TimerScreenState extends State<TimerScreen>
               ? Icons.check
               : (s.is_running ? Icons.pause : Icons.play_arrow),
           onTap: s.done ? _dismiss : (s.is_running ? _pause : _startOrResume),
+          very_tight: very_tight,
         ),
         const SizedBox(width: 16),
         right_slot(),
@@ -1229,14 +1230,15 @@ class _SavedTimerSheetState extends State<_SavedTimerSheet> {
 class _PillBtn extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
+  final bool very_tight;
 
-  const _PillBtn({required this.label, required this.onTap});
+  const _PillBtn({required this.label, required this.onTap, this.very_tight = false});
 
   @override
   Widget build(BuildContext context) => GestureDetector(
     onTap: onTap,
     child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: EdgeInsets.symmetric(horizontal: 10, vertical: very_tight ? 4 : 6),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: noctuaText(context).withAlpha(77)),
@@ -1244,7 +1246,7 @@ class _PillBtn extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-          fontSize: 14,
+          fontSize: very_tight ? 12 : 14,
           color: noctuaText(context).withAlpha(178),
         ),
       ),
@@ -1269,15 +1271,16 @@ class _IconBtn extends StatelessWidget {
 class _BigBtn extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
+  final bool very_tight;
 
-  const _BigBtn({required this.icon, required this.onTap});
+  const _BigBtn({required this.icon, required this.onTap, this.very_tight = false});
 
   @override
   Widget build(BuildContext context) => GestureDetector(
     onTap: onTap,
     child: Container(
-      width: 72,
-      height: 72,
+      width: very_tight ? 56 : 72,
+      height: very_tight ? 56 : 72,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
@@ -1285,7 +1288,7 @@ class _BigBtn extends StatelessWidget {
           width: 1.5,
         ),
       ),
-      child: Icon(icon, color: noctuaText(context), size: 36),
+      child: Icon(icon, color: noctuaText(context), size: very_tight ? 28 : 36),
     ),
   );
 }
