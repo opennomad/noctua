@@ -7,12 +7,14 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
 import android.os.Build
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.TextView
@@ -36,6 +38,7 @@ class AlarmActivity : Activity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     applyLockScreenFlags()
     super.onCreate(savedInstanceState)
+    overridePendingTransition(0, 0)   // no slide-in: lock screen must not peek through
     setContentView(R.layout.activity_alarm)
 
     alarmName  = intent.getStringExtra("name")      ?: ""
@@ -140,6 +143,7 @@ class AlarmActivity : Activity() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
       setShowWhenLocked(true)
       setTurnScreenOn(true)
+      window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     } else {
       @Suppress("DEPRECATION")
       window.addFlags(
@@ -150,10 +154,20 @@ class AlarmActivity : Activity() {
     }
   }
 
+  // Fades to black before removing the task so window-transition artifacts are invisible.
+  private fun closeActivity() {
+    val overlay = View(this).apply { background = ColorDrawable(Color.BLACK); alpha = 0f }
+    window.addContentView(overlay, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+    overlay.animate().alpha(1f).setDuration(150).withEndAction {
+      finishAndRemoveTask()
+      overridePendingTransition(0, 0)
+    }.start()
+  }
+
   private fun dismiss() {
     stopService(Intent(this, AlarmRingtoneService::class.java))
     AlarmActionReceiver.setPendingAction("dismissed", 0)
-    finish()
+    closeActivity()
   }
 
   private fun snooze() {
@@ -181,7 +195,7 @@ class AlarmActivity : Activity() {
     am.setAlarmClock(AlarmManager.AlarmClockInfo(at, showPi), firePi)
 
     AlarmActionReceiver.setPendingAction("snoozed", 0)
-    finish()
+    closeActivity()
   }
 
   private fun addTime() {
@@ -211,7 +225,7 @@ class AlarmActivity : Activity() {
     am.setAlarmClock(AlarmManager.AlarmClockInfo(at, showPi), firePi)
 
     AlarmActionReceiver.setPendingAction("added_minutes:$add_mins", 0)
-    finish()
+    closeActivity()
   }
 
   override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {

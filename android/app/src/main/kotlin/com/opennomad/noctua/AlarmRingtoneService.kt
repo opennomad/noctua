@@ -59,6 +59,10 @@ class AlarmRingtoneService : Service() {
     ringing_name = name
     ringing_type = type
 
+    // Post notification first (required for foreground service).
+    // fullScreenIntent handles both cases: wakes + shows activity when screen is off/locked;
+    // shows activity + brief heads-up when screen is on. The direct startActivity() call was
+    // removed — it raced with fullScreenIntent and caused a lock-screen flicker.
     startForeground(RINGING_NOTIF_ID, buildNotification(name, type, sound_uri, snooze_mins, add_mins, req_code))
     playCrescendo(sound_uri, crescendo_secs)
 
@@ -76,7 +80,7 @@ class AlarmRingtoneService : Service() {
         NotificationManager.IMPORTANCE_HIGH,
       ).apply {
         description = "Shown while an alarm or timer is ringing"
-        setSound(null, null)      // sound is played by MediaPlayer, not the channel
+        setSound(null, null)
         enableVibration(false)
       }
     )
