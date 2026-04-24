@@ -213,7 +213,7 @@ class _SettingsPanelState extends State<_SettingsPanel> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E).withAlpha(245),
+        color: const Color(0xFF1A1A2E).withAlpha(250),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: EdgeInsets.fromLTRB(
@@ -332,54 +332,70 @@ class _SettingsPanelState extends State<_SettingsPanel> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           const Divider(color: Color(0x1AFFFFFF), thickness: 1),
-          const SizedBox(height: 16),
-          Text(
-            'Made by',
-            style: TextStyle(color: Colors.white.withAlpha(77), fontSize: 11, letterSpacing: 1),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            alignment: WrapAlignment.center,
-            children: [
-              _linkPill('🌈 opennomad', 'https://opennomad.com'),
-              _linkPill('Codeberg', 'https://codeberg.org/opennomad'),
-              _linkPill('GitHub', 'https://github.com/opennomad'),
-            ],
-          ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            alignment: WrapAlignment.center,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                'A cup of coffee helps',
-                style: TextStyle(color: Colors.white.withAlpha(77), fontSize: 12),
+                'Made by ',
+                style: TextStyle(color: Colors.white.withAlpha(77), fontSize: 11, letterSpacing: 1),
+              ),
+              _linkPill('🌈 opennomad', 'https://opennomad.com'),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Source ',
+                style: TextStyle(color: Colors.white.withAlpha(77), fontSize: 11, letterSpacing: 1),
+              ),
+              _linkPill('Codeberg', 'https://codeberg.org/opennomad', icon: Icons.source),
+              const SizedBox(width: 8),
+              _linkPill('GitHub', 'https://github.com/opennomad', icon: Icons.code),
+            ],
+          ),
+          const SizedBox(height: 3),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Support ',
+                style: TextStyle(color: Colors.white.withAlpha(77), fontSize: 11, letterSpacing: 1),
               ),
               _linkPill('☕ Ko-fi', 'https://ko-fi.com/opennomad'),
+              const SizedBox(width: 8),
               _linkPill('❤️ Liberapay', 'https://liberapay.com/opennomad'),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
         ],
       );
 
-  Widget _linkPill(String label, String url) => GestureDetector(
+  Widget _linkPill(String label, String url, {IconData? icon}) => GestureDetector(
         onTap: () => launchUrl(Uri.parse(url)),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: icon != null ? 4 : 6),
           decoration: BoxDecoration(
             border: Border.all(color: Colors.white12),
             borderRadius: BorderRadius.circular(16),
           ),
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white54,
-              fontSize: 12,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 12, color: Colors.white54),
+                const SizedBox(width: 4),
+              ],
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ),
         ),
       );
