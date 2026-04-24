@@ -18,7 +18,7 @@ Five individually-coloured screens, animated backgrounds, alarm and timer notifi
 
 ## Screens
 
-Screens are navigable by horizontal swipe, keyboard arrow keys, or the icon pills on the right edge:
+Screens are navigable by horizontal swipe, keyboard arrow keys, or the icon pills on the left edge:
 
 | Screen | Description |
 |--------|-------------|
@@ -39,9 +39,9 @@ Each screen has its own colour scheme, configurable in Settings.
 - **Alarms** — one-shot or recurring by day of week; emoji shortcode labels (`:bell: wake up`, `:fire: gym`); full-screen notification with **Dismiss** and **Snooze 10 min** actions; audio routed through the alarm stream (bypasses DND on Android); Dart Timer-based scheduler on Linux (no notification daemon required); Snooze re-fires via the same scheduler on both platforms
 - **Timer notifications** — background-safe: fires via `alarmClock` schedule mode; `fullScreenIntent` opens the app on the lock screen when the timer fires; once the app is in the foreground the timer screen plays a looping alarm ringtone directly via the Ringtone API (no popup) and shows a ✓ done indicator; tapping ✓ stops the sound and resets; running/paused/done state persisted to `noctua_timers.json` and restored on next launch
 - **Sound selection** — per-platform ringtone catalogue: Android ringtones enumerated via `RingtoneManager`; Linux plays any `.oga`/`.wav` file from `/usr/share/sounds/freedesktop/stereo`; separate pickers for Alarm Sound and Timer Sound in Settings
-- **Saved timer presets** — auto-hiding edge pills (left / right / bottom); new preset activates immediately on save; 764-entry emoji shortcode map with inline autocomplete (type `:te` → chips appear for `:tea:`, `:telescope:`, …); works at any cursor position in the name
+- **Saved timer presets** — auto-hiding edge pills on the left; new preset activates immediately on save; 764-entry emoji shortcode map with inline autocomplete (type `:te` → chips appear for `:tea:`, `:telescope:`, …); works at any cursor position in the name
 - **Keyboard navigation** — arrow keys cycle screens; configurable quit shortcut (default `Ctrl+Q`); bindings are disabled while text fields or modals are focused; quit always works even with a modal open
-- **Settings overlay** — gear icon fades in on touch, auto-hides after 3 s; bottom-sheet with animation selector, density/speed/amplitude sliders, font picker, per-screen hue sliders, time format toggle, sound pickers, timer-pill edge, keyboard binding editor
+- **Settings overlay** — gear icon fades in on touch, auto-hides after 3 s; bottom-sheet with animation selector, density/speed/amplitude sliders, font picker, per-screen hue sliders, time format toggle, sound pickers, keyboard binding editor
 - **Config file** — human-readable JSON; `~/.config/noctua/noctua_config.json` on Linux, app documents directory on Android; `noctua_timers.json` in the same directory stores running timer state
 - **Android permissions** — `POST_NOTIFICATIONS`, `SCHEDULE_EXACT_ALARM`, and `USE_FULL_SCREEN_INTENT` requested at first launch; each gated on its own availability check so the user is never re-prompted once granted
 

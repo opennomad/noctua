@@ -64,7 +64,7 @@ Animated backgrounds. Per-screen colours. Alarms that fire.
 
 ## Screenshots
 
-Horizontal swipe, arrow keys, or the icon pills on the right edge.
+Horizontal swipe, arrow keys, or the icon pills on the left edge.
 
 <div class="screen-grid">
 
@@ -166,7 +166,7 @@ One tap in settings. Applies everywhere — Clock, World Clock, alarm list, and 
 
 #### Saved Timer Presets
 
-Name presets with emoji shortcodes — `:tea:`, `:pomodoro:`, `:pizza:`. Type `:te` and a suggestion row appears. New presets activate immediately on save. Edge pills auto-hide after 3 seconds.
+Name presets with emoji shortcodes — `:tea:`, `:pomodoro:`, `:pizza:`. Type `:te` and a suggestion row appears. New presets activate immediately on save. Edge pills on the left auto-hide after 3 seconds.
 
 </div>
 
