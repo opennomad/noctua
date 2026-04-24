@@ -1,12 +1,16 @@
 package com.opennomad.noctua
 
 import android.app.AlarmManager
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.media.Ringtone
 import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Build
+import android.os.Bundle
+import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -19,10 +23,38 @@ class MainActivity : FlutterActivity() {
   // Stored so onNewIntent can push notification-button actions to Flutter.
   private var _alarms_channel: MethodChannel? = null
 
+  // Prevent re-prompting for USE_FULL_SCREEN_INTENT on every onResume.
+  private var _fsi_prompted = false
+
   companion object {
     // Offset added to alarm req_code to get a distinct req_code for the
     // show PendingIntent (AlarmClockInfo status-bar icon).
     private const val SHOW_RC_OFFSET = 100_000
+  }
+
+  override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    checkFullScreenIntentPermission()
+  }
+
+  override fun onResume() {
+    super.onResume()
+    checkFullScreenIntentPermission()
+  }
+
+  // On Android 14+, USE_FULL_SCREEN_INTENT requires explicit user approval.
+  // If it's been revoked, open the system settings page for it once per session.
+  private fun checkFullScreenIntentPermission() {
+    if (_fsi_prompted) return
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return
+    val nm = getSystemService(NotificationManager::class.java)
+    if (!nm.canUseFullScreenIntent()) {
+      _fsi_prompted = true
+      startActivity(
+        Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT,
+               Uri.parse("package:$packageName"))
+      )
+    }
   }
 
   // Called when AlarmFireReceiver (or a notification button) raises the already-
