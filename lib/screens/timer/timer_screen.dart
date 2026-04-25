@@ -232,11 +232,13 @@ class _TimerScreenState extends State<TimerScreen>
     // this post-frame callback covers the cold-launch path (app started by
     // TimerRaiseReceiver — no lifecycle transition fires in that case).
     if (_active.done) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted || !_active.done) return;
-        AlarmService.cancelTimerEnd(
-          _active_id,
-        ).then((_) => AlarmService.notifyTimerDone(_timerName(_active_id)));
+        await AlarmService.cancelTimerEnd(_active_id);
+        final ringing = await AlarmService.getRingingAlarm();
+        if (ringing != null) {
+          AlarmService.notifyTimerDone(_timerName(_active_id));
+        }
       });
     }
   }
