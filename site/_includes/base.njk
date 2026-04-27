@@ -5,6 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ title }}</title>
   <meta name="description" content="{{ description }}">
+  <meta property="og:title" content="{{ title }}">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://noctua.opennomad.com{{ page.url | url }}">
+  <meta property="og:description" content="{{ description }}">
+  <meta property="og:image" content="https://noctua.opennomad.com{{ image or '/assets/logo.svg' }}">
+  <meta property="og:image:alt" content="{{ image_alt or 'Noctua app logo' }}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ title }}">
+  <meta name="twitter:description" content="{{ description }}">
+  <meta name="twitter:image" content="https://noctua.opennomad.com{{ image or '/assets/logo.svg' }}">
   <link rel="icon" href="/assets/logo.svg" type="image/svg+xml">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
