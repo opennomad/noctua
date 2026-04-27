@@ -33,7 +33,7 @@ lib/
     colour_scheme_sheet.dart # Per-screen hue pickers; Dark + Light sections; opened from settings_panel
   services/
     alarm_service.dart       # Android: AlarmManager.setAlarmClock() via noctua/alarms MethodChannel; flutter_local_notifications retained only for permission requests; flushPendingLaunchEvent() is a no-op (kept for call-site compat); checkRinging() queries AlarmRingtoneService.ringing_type via getRingingAlarm and emits AlarmEvent.tapped for alarms; notifyTimerDone() starts AlarmRingtoneService via startRingtone; stopRingtone() stops it; Linux: Dart Timer scheduler + paplay subprocess; countdown notification scheduling via scheduleCountdown/cancelCountdown
-    ringtone_service.dart    # RingtoneEntry; list() dispatches to Android MethodChannel or Linux filesystem scan; preview(uri)/stopPreview() — Android Ringtone API, Linux paplay subprocess
+    ringtone_service.dart    # RingtoneEntry; list() dispatches to Android MethodChannel or Linux filesystem scan; preview(uri)/stopPreview() — Android Ringtone API, Linux paplay subprocess; `_SettingsPanelState` tracks `_previewing: String?`, calls `stopPreview()` in `dispose()`
     timer_persistence.dart   # TimerSession + TimerSnapshot; save on start/pause/reset/dismiss/expire; restore via deadline_ms on launch
   theme/
     color_schemes.dart       # NoctuaColorScheme; NoctuaSchemeScope InheritedWidget; noctuaText(ctx) + noctuaIsLight(ctx) helpers; schemeByName(name, {light}) + schemeFromHue(hue, {light})
@@ -42,7 +42,7 @@ lib/
   widgets/
     animated_background.dart # Ticker-based; monotonic _t; 'none' = _SolidPainter; loads bubbles.frag FragmentProgram async
     stack_nav.dart           # Swipe/programmatic nav; crossfade BG + FG; pills overlay at bottom edge (SafeArea + 12 px padding); light-aware pill ink colour
-    settings_overlay.dart    # Listener (no gesture arena); fade-in gear icon; 3 s auto-hide; top-right corner with 12 px padding; light-mode-aware icon colour
+    settings_overlay.dart    # Listener (not GestureDetector); fade-in gear icon; 3 s auto-hide; top-right corner with 12 px padding; light-mode-aware icon colour
     animations/
       lava_lamp_painter.dart
       raindrops_painter.dart
@@ -51,7 +51,19 @@ lib/
 assets/
   shaders/
     bubbles.frag             # GLSL fragment shader; uniform u_time is fractional cycle (not radians); 3×3 cell neighbourhood; 1-smoothstep for fade-out
-```
+
+## Eleventy site (site/)
+
+The Eleventy site lives in `site/`. Open Graph and Twitter cards are injected via `site/_includes/base.njk` — tags use short frontmatter names `image` and `image_alt`, falling back to the app logo.
+
+- `npm run build` to build the Eleventy site
+- `npm start` to serve locally
+- `npm run publish` to sync to server
+
+## SEO / Open Graph
+- `site/_includes/base.njk` includes `og:title`, `og:description`, `og:image`, `og:image:alt`, `twitter:card` tags
+- Per-post images use front matter `image` and `image_alt`; fallback to `/assets/logo.svg`
+- Built site: `site/_site/index.html`
 
 ## Key conventions
 
@@ -62,10 +74,9 @@ assets/
 - Animations use a `Ticker` for monotonically increasing time — no hard reset loops
 - `Listener` (not `GestureDetector`) for vertical nav in ColumnPage — stays out of gesture arena
 - `Platform.isAndroid` / `Platform.isLinux` guards in AlarmService and RingtoneService
-- Android alarm stack: `AlarmManager.setAlarmClock()` fires `AlarmFireReceiver`; receiver starts `AlarmRingtoneService` (foreground service, MediaPlayer + crescendo, `USAGE_ALARM`) and calls `startActivity(MainActivity)` directly (setAlarmClock BroadcastReceiver is exempt from background-activity-start restrictions); `AlarmRingtoneService` posts a full-screen `CATEGORY_ALARM` ongoing notification; companion fields `ringing_type`/`ringing_name` are read by Flutter via `getRingingAlarm` MethodChannel call in `checkRinging()`
+- Android alarm stack: `AlarmManager.setAlarmClock()` fires `AlarmFireReceiver`; receiver starts `AlarmRingtoneService` (foreground service, MediaPlayer + crescendo, `USAGE_ALARM`); `AlarmRingtoneService` posts a full-screen `CATEGORY_ALARM` ongoing notification; companion fields `ringing_type`/`ringing_name` are read by Flutter via `getRingingAlarm` MethodChannel call in `checkRinging()`
 - Android notification channel for ringing: `noctua_ringing_v1`, `IMPORTANCE_HIGH`, no channel sound (MediaPlayer handles it); `RINGING_NOTIF_ID = 77777`
-- `KeyBindings.quit` (default `'Ctrl+w'`) handled before modal/text-field guard in `_onKey`; `_buildKeyLabel()` prepends `Ctrl+`/`Alt+`/`Shift+` from `HardwareKeyboard.instance.isXxxPressed`; quit calls `exit(0)` on Linux, `SystemNavigator.pop()` on Android; `_isModifierKey()` prevents bare modifier presses from being captured as bindings
-- `notifyTimerDone()` on Android starts `AlarmRingtoneService` via `startRingtone` MethodChannel (instant-on, no crescendo, `type=timer`); `cancelTimerDone()` calls `stopRingtone`; user dismisses via the in-app ✓ button
+- `notifyTimerDone()` on Android starts `AlarmRingtoneService` via `startRingtone` MethodChannel (instant-on, no crescendo, `type=timer`); `cancelTimerDone()` calls `stopRingtone`
 - Background timer expiry: `scheduleTimerEnd` schedules via `setAlarmClock`; `AlarmFireReceiver` starts `AlarmRingtoneService` + raises `MainActivity`; `_TState.deadline_ms` stores epoch-ms when running; `_checkExpiredOnResume()` compares wall clock on `AppLifecycleState.resumed` to handle timers that expired while Flutter was suspended; `_dismiss()` calls both `cancelTimerDone()` and `cancelTimerEnd(id)`
 - `syncAll()` cancels alarm notifications individually (not `cancelAll()`) so running timer notifications are not affected; `AlarmService.cancel(alarm)` must be called before `deleteAlarm()` in alarm_edit_sheet since `syncAll` no longer nukes everything
 - Linux alarm scheduling uses self-rescheduling Dart Timers (no notification daemon); `_linux_sound_proc` stores the `paplay` handle for cancellation; Linux snooze uses `_linux_snooze_timer` (same pattern)
