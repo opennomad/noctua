@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.3 (2026-04-28)
+
+### Fixed
+
+- Alarm/timer dismiss no longer re-fires the ringtone when the notification shade is pulled down while ringing (ringing state now cleared synchronously before the service is stopped)
+- Restoring a timer no longer restarts the ringtone if an alarm is already ringing
+
 ## 0.2.2 (2026-04-24)
 
 ### Added
