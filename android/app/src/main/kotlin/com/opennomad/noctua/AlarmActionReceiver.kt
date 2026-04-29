@@ -59,6 +59,11 @@ class AlarmActionReceiver : BroadcastReceiver() {
   }
 
   override fun onReceive(context: Context, intent: Intent) {
+    // Clear ringing state immediately — stopService() is async and onDestroy()
+    // may not fire until after raiseApp() brings Flutter to the foreground,
+    // causing getRingingAlarm() to return stale data and re-fire the alarm.
+    AlarmRingtoneService.ringing_type = ""
+    AlarmRingtoneService.ringing_name = ""
     context.stopService(Intent(context, AlarmRingtoneService::class.java))
 
     when (intent.action) {

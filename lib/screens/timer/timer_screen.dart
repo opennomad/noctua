@@ -110,9 +110,11 @@ class _TimerScreenState extends State<TimerScreen>
       s.done = true;
       s.deadline_ms = null;
     });
-    AlarmService.cancelTimerEnd(
-      _active_id,
-    ).then((_) => AlarmService.notifyTimerDone(_timerName(_active_id)));
+    // AlarmFireReceiver already started AlarmRingtoneService when the alarm
+    // fired in the background — don't call notifyTimerDone() here, as that
+    // re-fires the service after a shade dismiss (where ringing_type was
+    // cleared by AlarmActionReceiver before raiseApp()).
+    AlarmService.cancelTimerEnd(_active_id);
     _saveSession();
   }
 
