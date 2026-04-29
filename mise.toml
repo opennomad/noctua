@@ -67,6 +67,11 @@ depends = ["build:android"]
 run = "tar -czf build/noctua-v${VERSION}-linux.tar.gz -C build/linux/x64/release/bundle ."
 depends = ["build:linux"]
 
+# developer installs
+[tasks."adb:install"]
+description = "install to locall device via adb"
+run = "adb install -r build/noctua-v${VERSION}.apk"
+depends = ["package:android"]
 
 # opennomad (Gitea CLI):
 [tasks."release:opennomad"]
