@@ -85,6 +85,7 @@ tea release create v${VERSION} \
 --asset build/noctua-v${VERSION}-linux.tar.gz \
 --repo opennomad/noctua
 '''
+depends = ["package:android","package:linux"]
 
 # Codeberg (Gitea CLI):
 [tasks."release:codeberg"]
@@ -98,6 +99,7 @@ tea release create v${VERSION} \
 --asset build/noctua-v${VERSION}-linux.tar.gz \
 --repo opennomad/noctua
 '''
+depends = ["package:android","package:linux"]
 
 # GitHub (GitHub CLI):
 [tasks."release:github"]
@@ -112,6 +114,7 @@ build/noctua-v${VERSION}.apk \
 build/noctua-v${VERSION}-linux.tar.gz \
 --repo opennomad/noctua
 '''
+depends = ["package:android","package:linux"]
 
 [tasks."publish:site"]
 description = "publish the website"
