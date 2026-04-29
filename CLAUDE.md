@@ -52,6 +52,17 @@ assets/
   shaders/
     bubbles.frag             # GLSL fragment shader; uniform u_time is fractional cycle (not radians); 3×3 cell neighbourhood; 1-smoothstep for fade-out
 
+## Versioning
+
+Single source of truth: `pubspec.yaml` (`version: X.Y.Z+buildnum`).
+
+- Flutter and Android read it natively (`flutter.versionName` / `flutter.versionCode` in `android/app/build.gradle.kts`)
+- `.mise-env.sh` parses it and exports `$VERSION` (strips `+buildnum`) — used by all `mise` release/package tasks
+- `site/.eleventy.js` parses it to inject `{{ version }}` into the Eleventy site
+- There is no `VERSION` file; do not create one
+
+To release: bump `version:` in `pubspec.yaml`, then run `mise run release:*`.
+
 ## Eleventy site (site/)
 
 The Eleventy site lives in `site/`. Open Graph and Twitter cards are injected via `site/_includes/base.njk` — tags use short frontmatter names `image` and `image_alt`, falling back to the app logo.

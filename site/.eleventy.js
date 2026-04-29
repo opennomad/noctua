@@ -6,10 +6,12 @@ module.exports = function (eleventyConfig) {
   eleventyConfig.addPassthroughCopy('img');
   eleventyConfig.addPassthroughCopy({ '../assets/logo.svg': 'assets/logo.svg' });
 
-  // Global data: version from VERSION file in project root.
+  // Global data: version from pubspec.yaml (strips +buildnum).
   eleventyConfig.addGlobalData('version', (() => {
     try {
-      return fs.readFileSync(path.join(__dirname, '..', 'VERSION'), 'utf8').trim();
+      const pubspec = fs.readFileSync(path.join(__dirname, '..', 'pubspec.yaml'), 'utf8');
+      const match = pubspec.match(/^version:\s*(\S+)/m);
+      return match ? match[1].split('+')[0] : '0.0.0';
     } catch {
       return '0.0.0';
     }
