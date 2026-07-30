@@ -6,7 +6,7 @@ _.source = ".mise-env.sh"
 # android-sdk = "latest"
 android-sdk = "1.0"
 flutter = "stable"
-java = "temurin-21.0.11+10.0.LTS"
+java = "temurin-21.0.12+8.0.LTS"
 
 [tasks.test]
 description = "run the tests"
